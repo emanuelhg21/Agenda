@@ -17,6 +17,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --ink:#202A38;
@@ -403,10 +404,14 @@
 
     <div class="card">
       <h3>Sincronización entre dispositivos</h3>
-      <p class="meta-line" style="margin-bottom:8px;">Cuando abres este archivo directamente en el navegador (sin usar Claude), tus datos se guardan solo en ese navegador. Para que se sincronicen automáticamente entre varios dispositivos, esta app se conecta a una base de datos gratuita (Firebase): cursos, horario, eventos, calificaciones, ajustes, y también tus archivos y grabaciones (que se suben a Firebase Storage).</p>
-      <p class="meta-line" id="sync-status" style="font-weight:700;margin-bottom:8px;"></p>
+      <p class="meta-line" style="margin-bottom:8px;">Cuando abres este archivo directamente en el navegador (sin usar Claude), tus datos se guardan solo en ese navegador. Para sincronizar automáticamente entre varios dispositivos: cursos, horario, eventos, calificaciones y ajustes viajan por una base de datos gratuita (Firebase); tus archivos y grabaciones se guardan en tu propio Google Drive (carpeta "Emanuel Sync"), que tiene mucha más capacidad.</p>
+      <p class="meta-line" id="sync-status" style="font-weight:700;margin-bottom:4px;"></p>
       <div class="field"><label>Código de sincronización (usa el mismo texto en todos tus dispositivos)</label><input type="text" id="cfg-sync-code" placeholder="Ej. una palabra o frase que solo tú uses"></div>
       <button class="btn primary" onclick="saveSyncCode()">Guardar y sincronizar</button>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+        <p class="meta-line" id="drive-status" style="font-weight:700;margin-bottom:6px;"></p>
+        <button class="btn" onclick="connectGoogleDrive()">🔗 Conectar con Google Drive</button>
+      </div>
     </div>
 
     <div class="card">
@@ -585,48 +590,136 @@ function saveSyncCode(){
   else { if(fbUnsub){ fbUnsub(); fbUnsub=null; } renderSyncStatus(); }
 }
 
-/* ---------------- Sincronización de archivos (Firestore, en trozos de ~700 KB) ---------------- */
-const FILE_CHUNK_SIZE = 700000;
+/* ---------------- Sincronización de archivos (Google Drive, carpeta "Emanuel Sync") ---------------- */
+const GOOGLE_CLIENT_ID = "1093651240685-b9203os1ne0uoc61r8964kle10jml2d5.apps.googleusercontent.com";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 function syncActive(){ return !!(state.config.syncCode && initFirebaseIfNeeded()); }
-function fileChunksCollection(){ return fbDb.collection('emanuel_sync_files'); }
-async function uploadFileToCloud(fileId, dataUrl){
-  if(!syncActive()) return false;
+
+let gDriveToken = null, gTokenClient = null, gDriveFolderId = null;
+function driveReady(){ return !!gDriveToken; }
+function saveDriveTokenCache(token, expiresInSec){
+  try{ localStorage.setItem('emanuel_drive_token', JSON.stringify({token, exp: Date.now() + (expiresInSec*1000) - 60000})); }catch(e){}
+}
+function loadDriveTokenCache(){
   try{
-    await deleteFileFromCloud(fileId); // limpia trozos de una versión anterior del mismo archivo, si existía
-    const col = fileChunksCollection();
-    const prefix = state.config.syncCode+'_'+fileId;
-    const chunks = [];
-    for(let i=0;i<dataUrl.length;i+=FILE_CHUNK_SIZE) chunks.push(dataUrl.slice(i,i+FILE_CHUNK_SIZE));
-    await col.doc(prefix+'_meta').set({chunks: chunks.length, updatedAt: Date.now()});
-    await Promise.all(chunks.map((c,i)=> col.doc(prefix+'_'+i).set({data:c})));
-    return true;
-  }catch(e){ console.error('No se pudo subir el archivo a la nube', e); return false; }
+    const raw = localStorage.getItem('emanuel_drive_token');
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    if(obj.exp > Date.now()) gDriveToken = obj.token;
+  }catch(e){}
+}
+function initGoogleTokenClient(){
+  if(gTokenClient || typeof google === 'undefined' || !google.accounts) return;
+  gTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: (resp)=>{
+      if(resp.error){ console.error('Error de autorización de Drive', resp); renderDriveStatus('error'); return; }
+      gDriveToken = resp.access_token;
+      saveDriveTokenCache(resp.access_token, resp.expires_in || 3500);
+      renderDriveStatus('connected');
+    }
+  });
+}
+function connectGoogleDrive(){
+  initGoogleTokenClient();
+  if(!gTokenClient){ alert('No se pudo cargar el inicio de sesión de Google todavía. Espera un segundo e inténtalo de nuevo.'); return; }
+  gTokenClient.requestAccessToken();
+}
+function renderDriveStatus(state_){
+  const el = document.getElementById('drive-status');
+  if(!el) return;
+  const map = {
+    connected: ['✓ Conectado a Google Drive', 'var(--accent)'],
+    error: ['⚠ No se pudo conectar con Google Drive', 'var(--danger)'],
+    disconnected: ['No conectado a Google Drive todavía', 'var(--ink-soft)']
+  };
+  const m = map[driveReady() ? 'connected' : (state_||'disconnected')];
+  el.textContent = m[0]; el.style.color = m[1];
+}
+async function driveApiFetch(url, options){
+  options = options || {};
+  options.headers = Object.assign({Authorization:'Bearer '+gDriveToken}, options.headers||{});
+  let res = await fetch(url, options);
+  if(res.status===401){
+    // token vencido: hay que reconectar manualmente (Google no da un refresh token en este flujo)
+    gDriveToken = null;
+    try{ localStorage.removeItem('emanuel_drive_token'); }catch(e){}
+    renderDriveStatus('disconnected');
+    throw new Error('Sesión de Drive vencida, vuelve a conectar en Ajustes.');
+  }
+  return res;
+}
+async function ensureDriveFolder(){
+  if(gDriveFolderId) return gDriveFolderId;
+  const q = encodeURIComponent("name='Emanuel Sync' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+  const res = await driveApiFetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)');
+  const data = await res.json();
+  if(data.files && data.files.length){ gDriveFolderId = data.files[0].id; return gDriveFolderId; }
+  const created = await (await driveApiFetch('https://www.googleapis.com/drive/v3/files', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name:'Emanuel Sync', mimeType:'application/vnd.google-apps.folder' })
+  })).json();
+  gDriveFolderId = created.id;
+  return gDriveFolderId;
+}
+async function driveFindFileByName(name){
+  const folderId = await ensureDriveFolder();
+  const q = encodeURIComponent("name='"+name+"' and '"+folderId+"' in parents and trashed=false");
+  const res = await driveApiFetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)');
+  const data = await res.json();
+  return (data.files && data.files[0]) ? data.files[0].id : null;
+}
+function dataUrlToBlob(dataUrl){
+  const [header, base64] = dataUrl.split(',');
+  const match = header.match(/data:(.*?);base64/);
+  const mime = match ? match[1] : 'application/octet-stream';
+  const bin = atob(base64);
+  const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type:mime});
+}
+async function uploadFileToCloud(fileId, dataUrl){
+  if(!driveReady()) return false;
+  try{
+    const folderId = await ensureDriveFolder();
+    const name = fileId+'.dat';
+    const existingId = await driveFindFileByName(name);
+    const blob = dataUrlToBlob(dataUrl);
+    const metadata = existingId ? {} : { name, parents:[folderId] };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+    form.append('file', blob);
+    const url = existingId
+      ? 'https://www.googleapis.com/upload/drive/v3/files/'+existingId+'?uploadType=multipart'
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    const res = await driveApiFetch(url, { method: existingId?'PATCH':'POST', body: form });
+    return res.ok;
+  }catch(e){ console.error('No se pudo subir el archivo a Drive', e); return false; }
 }
 async function fetchFileFromCloud(fileId){
-  if(!initFirebaseIfNeeded()) return null;
+  if(!driveReady()) return null;
   try{
-    const col = fileChunksCollection();
-    const prefix = state.config.syncCode+'_'+fileId;
-    const metaSnap = await col.doc(prefix+'_meta').get();
-    if(!metaSnap.exists) return null;
-    const n = metaSnap.data().chunks;
-    const parts = await Promise.all(Array.from({length:n}, (_,i)=> col.doc(prefix+'_'+i).get()));
-    return parts.map(p=> (p.data()||{}).data || '').join('');
-  }catch(e){ console.error('No se pudo descargar el archivo de la nube', e); return null; }
+    const id = await driveFindFileByName(fileId+'.dat');
+    if(!id) return null;
+    const res = await driveApiFetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media');
+    if(!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){ console.error('No se pudo descargar el archivo de Drive', e); return null; }
 }
 async function deleteFileFromCloud(fileId){
-  if(!initFirebaseIfNeeded()) return;
+  if(!driveReady()) return;
   try{
-    const col = fileChunksCollection();
-    const prefix = state.config.syncCode+'_'+fileId;
-    const metaRef = col.doc(prefix+'_meta');
-    const metaSnap = await metaRef.get();
-    if(metaSnap.exists){
-      const n = metaSnap.data().chunks;
-      await Promise.all(Array.from({length:n}, (_,i)=> col.doc(prefix+'_'+i).delete()));
-      await metaRef.delete();
-    }
-  }catch(e){ /* best effort, no bloquea el resto de la app */ }
+    const id = await driveFindFileByName(fileId+'.dat');
+    if(id) await driveApiFetch('https://www.googleapis.com/drive/v3/files/'+id, {method:'DELETE'});
+  }catch(e){ /* best effort */ }
 }
 
 async function loadState(){
@@ -2470,7 +2563,7 @@ function saveFileUpload(){
     const reader = new FileReader();
     reader.onload = async ()=>{
       entry.hasData = await storageSetSafe('filedata:'+entry.id, reader.result);
-      if(syncActive()){
+      if(driveReady()){
         entry.cloudSynced = await uploadFileToCloud(entry.id, reader.result);
       }
       saveState(); renderFiles();
@@ -2514,7 +2607,7 @@ async function startRecording(){
       const reader = new FileReader();
       reader.onload = async ()=>{
         entry.hasData = await storageSetSafe('filedata:'+entry.id, reader.result);
-        if(syncActive()){
+        if(driveReady()){
           entry.cloudSynced = await uploadFileToCloud(entry.id, reader.result);
         }
         saveState(); renderFiles();
@@ -2553,6 +2646,7 @@ function renderSettings(){
   ).join('') || '<span class="meta-line">Sin opciones aún.</span>';
   document.getElementById('cfg-sync-code').value = state.config.syncCode || '';
   renderSyncStatus();
+  renderDriveStatus();
   renderEventTypes();
 }
 function removeClothingOption(idx){ state.clothingOptions.splice(idx,1); saveState(); renderSettings(); }
@@ -2657,6 +2751,8 @@ function showLocalModeNotice(){
   switchView('horario');
   if(!HAS_CLOUD_STORAGE) showLocalModeNotice();
   if(state.config.syncCode) startSyncListener();
+  loadDriveTokenCache();
+  setTimeout(initGoogleTokenClient, 800);
   setTimeout(scanStageDeadlines, 1500);
   setInterval(scanStageDeadlines, 30000);
 })();
