@@ -513,13 +513,13 @@ const HAS_CLOUD_STORAGE = (typeof window.storage !== 'undefined' && window.stora
    Todo (incluidos archivos y grabaciones) se guarda en Firestore, que es gratis y no pide tarjeta.
 */
 const FIREBASE_CONFIG = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
-};
+  apiKey: "AIzaSyAPSmYj1II03BGjmWZ_MITIl0ApNX8GOrE",
+  authDomain: "emanuel-agenda.firebaseapp.com",
+  projectId: "emanuel-agenda",
+  storageBucket: "emanuel-agenda.firebasestorage.app",
+  messagingSenderId: "1093651240685",
+  appId: "1:1093651240685:web:912ae7cf00d0bd4d7edee4"
+}; 
 let fbDb = null, fbUnsub = null, lastPushedUpdatedAt = null;
 function firebaseConfigured(){
   return !!(FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('TU_'));
