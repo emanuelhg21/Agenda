@@ -1,0 +1,2652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emanuel — Agenda Académica</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Emanuel">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1B4B43">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'%3E%3Crect width='108' height='108' fill='%231B4B43'/%3E%3Cpath fill='%23F6E8D2' d='M34 30h40v12H46v6h24v12H46v6h28v12H34z'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'%3E%3Crect width='108' height='108' fill='%231B4B43'/%3E%3Cpath fill='%23F6E8D2' d='M34 30h40v12H46v6h24v12H46v6h28v12H34z'/%3E%3C/svg%3E">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Emanuel%20-%20Agenda%20Acad%C3%A9mica%22%2C%22short_name%22%3A%22Emanuel%22%2C%22display%22%3A%22standalone%22%2C%22start_url%22%3A%22.%22%2C%22background_color%22%3A%22%23EEF1EC%22%2C%22theme_color%22%3A%22%231B4B43%22%7D">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>
+  :root{
+    --ink:#202A38;
+    --ink-soft:#4B5566;
+    --paper:#EEF1EC;
+    --surface:#FFFFFF;
+    --line:#D9DCD2;
+    --accent:#1B4B43;
+    --accent-soft:#E4EDE9;
+    --warm:#C98A2B;
+    --warm-soft:#F6E8D2;
+    --danger:#A63A32;
+    --danger-soft:#F4E1DE;
+    --radius:10px;
+    --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);}
+  body{min-height:100vh;}
+  h1,h2,h3,h4{font-family:var(--serif);font-weight:600;margin:0 0 4px;color:var(--ink);}
+  p{margin:0;}
+  button{font-family:var(--sans);cursor:pointer;}
+  input,select,textarea{font-family:var(--sans);}
+  a{color:var(--accent);}
+
+  #app-header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:22px 26px 10px;border-bottom:2px solid var(--ink);
+  }
+  #app-header .brand{display:flex;align-items:baseline;gap:10px;}
+  #app-header h1{font-size:26px;letter-spacing:0.3px;}
+  #app-header .tagline{font-size:12.5px;color:var(--ink-soft);}
+  #app-header .period{font-size:12.5px;color:var(--ink-soft);}
+
+  #sidebar-backdrop{
+    display:none;position:fixed;inset:0;background:rgba(20,26,36,0.35);z-index:39;
+  }
+  #sidebar-backdrop.show{display:block;}
+  #sidebar-toggle{
+    position:fixed;top:50%;left:0;transform:translateY(-50%);
+    background:var(--ink);color:#fff;border:none;border-radius:0 10px 10px 0;
+    padding:16px 7px;font-size:17px;cursor:pointer;z-index:41;
+    transition:left 0.25s ease;box-shadow:2px 2px 8px rgba(0,0,0,0.2);
+  }
+  #sidebar-toggle.sidebar-open{left:210px;}
+  #sidebar{
+    position:fixed;top:0;left:0;height:100vh;width:210px;
+    background:var(--surface);border-right:2px solid var(--ink);
+    z-index:40;transition:transform 0.25s ease;overflow-y:auto;
+    padding:16px 0 20px;box-shadow:2px 0 14px rgba(0,0,0,0.18);
+  }
+  #sidebar.collapsed{transform:translateX(-100%);box-shadow:none;}
+  #sidebar .sidebar-title{
+    font-family:var(--serif);font-size:19px;font-weight:700;padding:4px 18px 14px;
+    border-bottom:2px solid var(--ink);margin-bottom:8px;
+  }
+  #sidebar .tab-btn{
+    display:block;width:100%;text-align:left;background:transparent;border:none;
+    padding:12px 18px;font-size:14px;color:var(--ink-soft);
+    border-left:3px solid transparent;white-space:nowrap;
+  }
+  .tab-btn.active{color:var(--ink);border-left-color:var(--accent);background:var(--accent-soft);font-weight:700;}
+  .tab-btn:hover{color:var(--ink);}
+
+  main{padding:20px 26px 60px;max-width:1180px;margin:0 auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .row-between{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .btn{
+    border:1.5px solid var(--ink);background:var(--surface);color:var(--ink);
+    padding:8px 14px;border-radius:var(--radius);font-size:13px;font-weight:600;
+  }
+  .btn:hover{background:var(--ink);color:var(--surface);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.primary:hover{background:#123832;}
+  .btn.warm{background:var(--warm);border-color:var(--warm);color:#fff;}
+  .btn.warm:hover{background:#a9721e;}
+  .btn.danger{background:var(--surface);border-color:var(--danger);color:var(--danger);}
+  .btn.danger:hover{background:var(--danger);color:#fff;}
+  .btn.small{padding:5px 10px;font-size:12px;border-radius:8px;}
+  .btn.ghost{border-color:var(--line);}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;}
+  .empty{color:var(--ink-soft);font-size:13.5px;padding:24px;text-align:center;border:1.5px dashed var(--line);border-radius:var(--radius);background:var(--surface);}
+
+  /* Schedule grid */
+  #schedule-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);}
+  .sched-grid{display:grid;min-width:760px;}
+  .sched-head{position:sticky;top:0;background:var(--surface);z-index:2;border-bottom:1.5px solid var(--ink);padding:8px 4px;font-size:12.5px;font-weight:700;text-align:center;}
+  .sched-time-col{border-right:1px solid var(--line);}
+  .time-label{font-size:10.5px;color:var(--ink-soft);text-align:right;padding-right:6px;transform:translateY(-6px);}
+  .sched-day-col{position:relative;border-right:1px solid var(--line);cursor:copy;}
+  .sched-hourline{border-top:1px solid var(--line);}
+  .sched-block{
+    position:absolute;left:3px;right:3px;border-radius:7px;padding:4px 6px;
+    color:#fff;font-size:11.5px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.15);
+    border:1px solid rgba(0,0,0,0.15);cursor:grab;
+  }
+  .sched-block b{display:block;font-size:12px;}
+  .sched-block .meta{opacity:0.9;font-size:10.5px;}
+
+  /* Calendar */
+  .cal-nav{display:flex;align-items:center;gap:12px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-dow{text-align:center;font-size:11px;color:var(--ink-soft);font-weight:700;padding-bottom:4px;}
+  .cal-day{min-height:88px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px;font-size:12px;position:relative;}
+  .cal-day.other-month{opacity:0.35;}
+  .cal-day.today{border-color:var(--accent);border-width:2px;}
+  .cal-day .num{font-weight:700;font-size:12px;}
+  .cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .cal-day-events{margin-top:3px;display:flex;flex-direction:column;gap:2px;}
+  .cal-evt-chip{font-size:9.5px;padding:1px 4px;border-radius:4px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* Agenda */
+  .agenda-date-header{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin:18px 0 8px;text-transform:uppercase;letter-spacing:0.4px;}
+  .agenda-item{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;}
+  .agenda-item .swatch{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+  .agenda-item .body{flex:1;}
+  .agenda-item .title{font-weight:700;font-size:14px;}
+  .agenda-item .sub{font-size:12px;color:var(--ink-soft);}
+  .badge{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:20px;background:var(--accent-soft);color:var(--accent);font-weight:700;}
+  .badge.grade{background:var(--warm-soft);color:#8a5c17;}
+
+  /* Lists / grids of entities */
+  .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
+  .entity-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;}
+  .entity-card h3{font-size:15.5px;}
+  .entity-card .meta-line{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .entity-card .actions{margin-top:10px;display:flex;gap:6px;}
+  .color-tag{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:middle;}
+
+  /* Forms */
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;}
+  .field input[type=text],.field input[type=number],.field input[type=email],.field input[type=tel],.field input[type=date],.field input[type=time],.field select,.field textarea{
+    width:100%;padding:8px 10px;border:1.3px solid var(--line);border-radius:8px;font-size:13.5px;background:#fff;color:var(--ink);
+  }
+  .field textarea{min-height:60px;resize:vertical;}
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+  .swatch-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .swatch-opt{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
+  .swatch-opt.selected{border-color:var(--ink);}
+  .grade-item-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+  .grade-item-row input[type=text]{flex:2;}
+  .grade-item-row input[type=number]{flex:1;}
+  .weight-total{font-size:12px;margin-top:4px;}
+  .weight-total.ok{color:var(--accent);}
+  .weight-total.bad{color:var(--danger);}
+
+  /* Modal */
+  #modal-root{}
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,26,36,0.45);display:flex;align-items:flex-start;justify-content:center;padding:36px 14px;overflow:auto;z-index:50;}
+  .modal-box{background:var(--paper);border-radius:14px;max-width:560px;width:100%;padding:22px 22px 20px;border:1px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,0.25);}
+  .modal-box.wide{max-width:820px;}
+  .modal-box h2{font-size:19px;margin-bottom:14px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .modal-close{float:right;background:none;border:none;font-size:18px;color:var(--ink-soft);}
+
+  /* Grades view */
+  .course-grade-block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;}
+  table.grade-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
+  table.grade-table th{text-align:left;font-size:11px;color:var(--ink-soft);border-bottom:1px solid var(--line);padding:4px 6px;}
+  table.grade-table td{padding:5px 6px;border-bottom:1px solid #F0F1EC;}
+  table.grade-table input[type=number]{width:70px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;}
+  .final-grade{font-size:20px;font-weight:700;font-family:var(--serif);}
+  .final-grade.pass{color:var(--accent);}
+  .final-grade.fail{color:var(--danger);}
+  .ponderado-box{background:var(--ink);color:#fff;border-radius:var(--radius);padding:16px 18px;margin-top:6px;}
+  .ponderado-box .val{font-family:var(--serif);font-size:30px;}
+
+  /* Files */
+  .file-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;}
+  .file-row .icon{font-size:18px;}
+  .file-row .info{flex:1;}
+  .file-row .info b{font-size:13px;}
+  .file-row .info .sub{font-size:11px;color:var(--ink-soft);}
+
+  .note{font-size:12px;color:var(--ink-soft);background:var(--accent-soft);padding:8px 10px;border-radius:8px;margin-bottom:14px;}
+  .rec-indicator{display:inline-flex;align-items:center;gap:6px;color:var(--danger);font-weight:700;font-size:12.5px;}
+  .rec-dot{width:9px;height:9px;border-radius:50%;background:var(--danger);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+  select#course-filter, select#file-course-filter{padding:6px 8px;border-radius:8px;border:1px solid var(--line);}
+  #view-horario:fullscreen{ background:var(--paper);padding:16px;overflow:auto;width:100vw;height:100vh; }
+  #view-horario:-webkit-full-screen{ background:var(--paper);padding:16px;overflow:auto;width:100vw;height:100vh; }
+
+  #print-area{ display:none; }
+  #print-area table{ width:100%; border-collapse:collapse; margin-bottom:16px; }
+  #print-area th, #print-area td{ border:1px solid #999; padding:4px 6px; font-size:12px; text-align:left; }
+  #print-area h2{ font-family:var(--serif); margin:16px 0 6px; }
+  @media print{
+    body > *:not(#print-area){ display:none !important; }
+    #print-area{ display:block !important; padding:10px; color:#000; }
+  }
+
+  @media (max-width:640px){
+    main{padding:14px;}
+    #app-header{padding:16px 14px 8px;flex-direction:column;align-items:flex-start;gap:4px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="app-header">
+  <div class="brand">
+    <h1>Emanuel</h1>
+    <span class="tagline">agenda académica</span>
+  </div>
+  <div class="period" id="header-period"></div>
+</div>
+
+<div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+<button id="sidebar-toggle" onclick="toggleSidebar()" title="Mostrar/ocultar menú">›</button>
+<nav id="sidebar" class="collapsed">
+  <div class="sidebar-title">Emanuel</div>
+  <button class="tab-btn" data-view="horario">Horario</button>
+  <button class="tab-btn" data-view="agenda">Agenda</button>
+  <button class="tab-btn" data-view="calendario">Calendario</button>
+  <button class="tab-btn" data-view="cursos">Cursos</button>
+  <button class="tab-btn" data-view="carrera">Carrera</button>
+  <button class="tab-btn" data-view="profesores">Profesores</button>
+  <button class="tab-btn" data-view="calificaciones">Calificaciones</button>
+  <button class="tab-btn" data-view="archivos">Archivos</button>
+  <button class="tab-btn" data-view="ajustes">Ajustes</button>
+</nav>
+
+<main>
+
+  <div class="view" id="view-horario">
+    <div class="note">Toca un bloque del horario para ver el curso, crear un evento, grabar audio o subir un archivo de esa clase.</div>
+    <div class="row-between">
+      <div class="cal-nav">
+        <button class="btn small ghost" onclick="weekShift(-1)">‹ Semana anterior</button>
+        <h2 id="week-range-label" style="font-size:15px;"></h2>
+        <button class="btn small ghost" onclick="weekShift(1)">Semana siguiente ›</button>
+        <button class="btn small ghost" onclick="weekGoToday()">Hoy</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn small ghost" id="fs-toggle-btn" onclick="toggleHorarioFullscreen()">⛶ Pantalla completa</button>
+        <button class="btn small ghost" onclick="printSchedule()">🖨️ Imprimir</button>
+        <button class="btn small ghost" onclick="openExtraForm()">+ Extra</button>
+        <button class="btn primary" onclick="openBlockForm()">+ Agregar bloque</button>
+      </div>
+    </div>
+    <div class="note" style="margin-top:6px;">Toca un espacio libre del horario para agregar algo ahí, o arrastra un bloque/evento/etapa para cambiarle el horario.</div>
+    <div class="row-between" style="margin-top:-6px;">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft);">
+        <span style="font-weight:700;color:var(--ink);">Mostrar:</span>
+        <label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="filter-courses" onchange="updateHorarioFilters()" style="width:auto;"> Bloques de cursos</label>
+        <label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="filter-events" onchange="updateHorarioFilters()" style="width:auto;"> Eventos</label>
+        <label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="filter-stages" onchange="updateHorarioFilters()" style="width:auto;"> Etapas de cumplimiento</label>
+        <label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="filter-extras" onchange="updateHorarioFilters()" style="width:auto;"> Extras</label>
+        <label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="filter-hide-done" onchange="updateHorarioFilters()" style="width:auto;"> Ocultar cumplidos</label>
+      </div>
+    </div>
+    <div id="schedule-wrap"></div>
+  </div>
+
+  <div class="view" id="view-agenda">
+    <div class="row-between">
+      <h2 style="font-size:16px;">Agenda</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="openAgendaReportForm()">🖨️ Reporte PDF</button>
+        <button class="btn primary" onclick="openEventForm()">+ Nuevo evento</button>
+      </div>
+    </div>
+    <div class="row-between" style="flex-wrap:wrap;gap:10px;margin-top:-4px;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <select id="ag-filter-course" onchange="updateAgendaFilters()"></select>
+        <select id="ag-filter-type" onchange="updateAgendaFilters()"></select>
+        <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="checkbox" id="ag-filter-stages" onchange="updateAgendaFilters()" style="width:auto;"> Mostrar etapas</label>
+        <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;"><input type="checkbox" id="ag-filter-hide-done" onchange="updateAgendaFilters()" style="width:auto;"> Ocultar cumplidos</label>
+      </div>
+    </div>
+    <div id="agenda-list"></div>
+  </div>
+
+  <div class="view" id="view-calendario">
+    <div class="row-between">
+      <div class="cal-nav">
+        <button class="btn small ghost" onclick="calShift(-1)">‹</button>
+        <h2 id="cal-month-label" style="font-size:16px;"></h2>
+        <button class="btn small ghost" onclick="calShift(1)">›</button>
+      </div>
+      <button class="btn primary" onclick="openEventForm()">+ Nuevo evento</button>
+    </div>
+    <div class="cal-grid" id="cal-dow-row"></div>
+    <div class="cal-grid" id="cal-grid" style="margin-top:4px;"></div>
+  </div>
+
+  <div class="view" id="view-cursos">
+    <div class="row-between">
+      <h2 style="font-size:16px;">Cursos</h2>
+      <button class="btn primary" onclick="openCourseForm()">+ Nuevo curso</button>
+    </div>
+    <div class="grid-cards" id="courses-grid"></div>
+  </div>
+
+  <div class="view" id="view-carrera">
+    <div class="note">Registra tu carrera o programa de formación para vincular cada curso a su ciclo correspondiente.</div>
+    <div class="row-between">
+      <h2 style="font-size:16px;">Carrera</h2>
+      <button class="btn primary" onclick="openCarreraForm()">+ Nueva carrera</button>
+    </div>
+    <div class="grid-cards" id="carreras-grid"></div>
+  </div>
+
+  <div class="view" id="view-profesores">
+    <div class="row-between">
+      <h2 style="font-size:16px;">Profesores</h2>
+      <button class="btn primary" onclick="openProfessorForm()">+ Nuevo profesor</button>
+    </div>
+    <div class="grid-cards" id="professors-grid"></div>
+  </div>
+
+  <div class="view" id="view-calificaciones">
+    <div class="row-between">
+      <h2 style="font-size:16px;">Calificaciones</h2>
+      <span class="meta-line">Escala 0–<span id="scale-max-lbl"></span>, nota mínima aprobatoria <span id="scale-min-lbl"></span></span>
+    </div>
+    <div class="row-between" style="margin-top:-6px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn small ghost" onclick="toggleAllCourseItems()">📄 Expandir/colapsar ítems por curso</button>
+        <button class="btn small ghost" onclick="toggleAllCiclos()">📁 Expandir/colapsar por ciclo</button>
+      </div>
+    </div>
+    <div id="grades-container"></div>
+    <div class="ponderado-box">
+      <div style="font-size:12px;opacity:0.8;">Ponderado general (todos los ciclos)</div>
+      <div class="val" id="ponderado-total">—</div>
+    </div>
+  </div>
+
+  <div class="view" id="view-archivos">
+    <div class="row-between">
+      <h2 style="font-size:16px;">Archivos y grabaciones</h2>
+      <select id="file-course-filter" onchange="renderFiles()"><option value="">Todos los cursos</option></select>
+    </div>
+    <div id="files-list"></div>
+  </div>
+
+  <div class="view" id="view-ajustes">
+    <h2 style="font-size:16px;margin-bottom:10px;">Ajustes generales</h2>
+    <div class="card">
+      <h3>Horario general</h3>
+      <div class="field-row">
+        <div class="field"><label>Hora de inicio</label><input type="number" id="cfg-start" min="0" max="23"></div>
+        <div class="field"><label>Hora de fin</label><input type="number" id="cfg-end" min="1" max="24"></div>
+      </div>
+      <div class="field">
+        <label>Días con clases</label>
+        <div id="cfg-days" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+      </div>
+      <div class="field"><label>Día de inicio de semana (para el horario y el calendario)</label><select id="cfg-week-start"></select></div>
+      <div class="field"><label>Inicio del ciclo/semestre (para contar semanas de repetición)</label><input type="date" id="cfg-semester-start"></div>
+      <div class="field-row">
+        <div class="field"><label>Nota máxima de la escala</label><input type="number" id="cfg-scale-max"></div>
+        <div class="field"><label>Nota mínima aprobatoria</label><input type="number" id="cfg-scale-min"></div>
+      </div>
+      <button class="btn primary" onclick="saveConfig()">Guardar ajustes</button>
+    </div>
+
+    <div class="card">
+      <h3>Opciones de vestimenta</h3>
+      <div id="clothing-options-list"></div>
+    </div>
+
+    <div class="card">
+      <h3>Opciones de materiales</h3>
+      <div id="material-options-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="row-between" style="margin-bottom:6px;">
+        <h3>Tipos de evento</h3>
+        <button class="btn small" onclick="openEventTypeForm()">+ Agregar tipo</button>
+      </div>
+      <div id="event-types-list"></div>
+    </div>
+
+    <div class="card">
+      <h3>Sincronización entre dispositivos</h3>
+      <p class="meta-line" style="margin-bottom:8px;">Cuando abres este archivo directamente en el navegador (sin usar Claude), tus datos se guardan solo en ese navegador. Para que se sincronicen automáticamente entre varios dispositivos, esta app se conecta a una base de datos gratuita (Firebase): cursos, horario, eventos, calificaciones, ajustes, y también tus archivos y grabaciones (que se suben a Firebase Storage).</p>
+      <p class="meta-line" id="sync-status" style="font-weight:700;margin-bottom:8px;"></p>
+      <div class="field"><label>Código de sincronización (usa el mismo texto en todos tus dispositivos)</label><input type="text" id="cfg-sync-code" placeholder="Ej. una palabra o frase que solo tú uses"></div>
+      <button class="btn primary" onclick="saveSyncCode()">Guardar y sincronizar</button>
+    </div>
+
+    <div class="card">
+      <h3>Datos</h3>
+      <p class="meta-line" style="margin-bottom:8px;">Este prototipo web guarda tu información en la nube de Claude, ligada a tu cuenta. La versión Android nativa (siguiente paso) tendrá sincronización propia entre tus dispositivos, alarmas que suenan con la app cerrada, y almacenamiento completo de archivos y grabaciones sin límite de 5&nbsp;MB.</p>
+      <p class="meta-line" style="margin-bottom:8px;">Si el guardado en la nube falla de forma persistente, usa estos botones para no perder tu información: exporta un respaldo a tu dispositivo y luego impórtalo cuando quieras (los archivos/grabaciones no se incluyen en el respaldo, solo cursos, horario, eventos y calificaciones).</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="btn" onclick="exportBackup()">⬇ Exportar respaldo (.json)</button>
+        <button class="btn" onclick="document.getElementById('import-backup-input').click()">⬆ Importar respaldo</button>
+        <input type="file" id="import-backup-input" accept="application/json" style="display:none;" onchange="importBackup(this.files[0])">
+        <button class="btn" onclick="cleanupOrphanFiles()">🧹 Limpiar archivos no usados</button>
+      </div>
+      <button class="btn danger" onclick="resetAll()">Borrar todos los datos</button>
+    </div>
+  </div>
+
+</main>
+
+<div id="modal-root"></div>
+<div id="print-area"></div>
+
+<script>
+/* ---------------- State & persistence ---------------- */
+const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const DOW_FULL = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const PALETTE = ['#1B4B43','#C98A2B','#A63A32','#2874A6','#7D3C98','#B9770E','#117864','#8E44AD','#CA6F1E','#5D6D7E','#148F77','#922B21'];
+
+let state = null;
+let currentView = 'horario';
+let calCursor = new Date();
+let weekCursor = new Date();
+function startOfWeek(d){
+  const nd=new Date(d); nd.setHours(0,0,0,0);
+  const startDay = (state && state.config && state.config.weekStartDay!=null) ? state.config.weekStartDay : 1;
+  const day=nd.getDay();
+  const diff = -(((day-startDay)+7)%7);
+  nd.setDate(nd.getDate()+diff);
+  return nd;
+}
+function addDays(d,n){ const nd=new Date(d); nd.setDate(nd.getDate()+n); return nd; }
+function weekShift(n){ weekCursor = addDays(weekCursor, 7*n); renderSchedule(); }
+function weekGoToday(){ weekCursor = new Date(); renderSchedule(); }
+function updateHorarioFilters(){
+  state.config.horarioFilters = {
+    courses: document.getElementById('filter-courses').checked,
+    events: document.getElementById('filter-events').checked,
+    stages: document.getElementById('filter-stages').checked,
+    extras: document.getElementById('filter-extras').checked,
+    hideCompleted: document.getElementById('filter-hide-done').checked
+  };
+  saveState(); renderSchedule();
+}
+
+function uid(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+function defaultState(){
+  return {
+    config:{ days:[1,2,3,4,5], startHour:8, endHour:16, scaleMax:20, scaleMin:14, semesterStart: todayStr(), horarioFilters:{courses:true, events:true, stages:true, extras:true, hideCompleted:false}, weekStartDay:1, agendaFilters:{courseId:'', eventTypeId:'', showStages:true, hideCompleted:false}, syncCode:'' },
+    clothingOptions:['Ropa de preferencia','Ropa formal','Laboratorio','Deportiva'],
+    materialOptions:['Calculadora','Libreta de apuntes','USB','Laptop'],
+    roleOptions:['Investigador','Editor','Revisor','Expositor','Prensa','Logística'],
+    fileTypeOptions:[],
+    extraTypeOptions:['Ejercicio','Leer','Ensayo','Tocada','Médico'],
+    extraBlocks:[],
+    tipoFormacionOptions:['Académico','Cultural','Deportivo','Político'],
+    professors:[],
+    courses:[],
+    carreras:[],
+    eventTypes:[
+      {id:'examen_parcial',name:'Examen parcial',color:'#A63A32',icon:'📘',hasGrade:true},
+      {id:'examen_final',name:'Examen final',color:'#922B21',icon:'📕',hasGrade:true},
+      {id:'practica_calificada',name:'Práctica calificada',color:'#B9770E',icon:'📝',hasGrade:true},
+      {id:'practica_dirigida',name:'Práctica dirigida',color:'#C98A2B',icon:'✏️',hasGrade:true},
+      {id:'trabajo',name:'Trabajo',color:'#2874A6',icon:'📄',hasGrade:true},
+      {id:'informe',name:'Informe',color:'#1B4B43',icon:'📋',hasGrade:true},
+      {id:'monografia',name:'Monografía',color:'#2E86C1',icon:'📖',hasGrade:true},
+      {id:'pasos',name:'Pasos',color:'#7D3C98',icon:'🪜',hasGrade:true},
+      {id:'control_lectura',name:'Control de lectura',color:'#8E44AD',icon:'📚',hasGrade:true},
+      {id:'exposicion',name:'Exposición',color:'#117864',icon:'🎤',hasGrade:true},
+      {id:'proyecto',name:'Proyecto',color:'#148F77',icon:'🛠️',hasGrade:true},
+      {id:'cultural',name:'Actividad cultural',color:'#D4AC0D',icon:'🎭',hasGrade:false},
+      {id:'deportivo',name:'Actividad deportiva',color:'#CA6F1E',icon:'⚽',hasGrade:false},
+      {id:'otro',name:'Otro',color:'#5D6D7E',icon:'📌',hasGrade:false},
+    ],
+    scheduleBlocks:[],
+    events:[],
+    files:[]
+  };
+}
+
+const HAS_CLOUD_STORAGE = (typeof window.storage !== 'undefined' && window.storage !== null);
+
+/* ================= SINCRONIZACIÓN ENTRE DISPOSITIVOS (Firebase) =================
+   Para activarla:
+   1) Ve a https://console.firebase.google.com y crea un proyecto gratis.
+   2) En el proyecto, abre "Firestore Database" y créala (modo prueba está bien para empezar).
+   3) También abre "Storage" (para sincronizar archivos y grabaciones) y actívalo (modo prueba).
+   4) En "Configuración del proyecto" > "Tus apps" > agrega una app web y copia el objeto de configuración.
+   5) Reemplaza los valores "TU_..." de aquí abajo por los tuyos y vuelve a abrir el archivo.
+*/
+const FIREBASE_CONFIG = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+let fbDb = null, fbStorage = null, fbUnsub = null, lastPushedUpdatedAt = null;
+function firebaseConfigured(){
+  return !!(FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('TU_'));
+}
+function initFirebaseIfNeeded(){
+  if(!firebaseConfigured() || typeof firebase==='undefined') return false;
+  if(!fbDb){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbDb = firebase.firestore();
+      fbStorage = firebase.storage();
+    }catch(e){ console.error('No se pudo iniciar Firebase', e); return false; }
+  }
+  return true;
+}
+function syncDocRef(){
+  const code = (state.config.syncCode||'').trim();
+  if(!code || !fbDb) return null;
+  return fbDb.collection('emanuel_sync').doc(code);
+}
+function startSyncListener(){
+  if(!initFirebaseIfNeeded()){ renderSyncStatus(); return; }
+  const ref = syncDocRef();
+  if(fbUnsub){ fbUnsub(); fbUnsub=null; }
+  if(!ref){ renderSyncStatus(); return; }
+  fbUnsub = ref.onSnapshot(snap=>{
+    const remote = snap.data();
+    if(!remote || !remote.payload) { renderSyncStatus('waiting'); return; }
+    if(remote.updatedAt && remote.updatedAt === lastPushedUpdatedAt){ renderSyncStatus('synced'); return; }
+    try{
+      const remoteState = JSON.parse(remote.payload);
+      const remoteFiles = Array.isArray(remoteState.files) ? remoteState.files : [];
+      const localFiles = state.files;
+      state = remoteState;
+      // combina: conserva los archivos locales (con su contenido) y agrega los que llegan de otros dispositivos (por su URL en la nube)
+      const merged = [...localFiles];
+      remoteFiles.forEach(rf=>{
+        if(!merged.some(lf=>lf.id===rf.id)) merged.push(Object.assign({}, rf, {hasData:false}));
+      });
+      state.files = merged;
+      renderAll();
+      renderSyncStatus('synced');
+    }catch(e){ console.error('No se pudo aplicar la actualización remota', e); renderSyncStatus('error'); }
+  }, err=>{ console.error('Error de sincronización', err); renderSyncStatus('error'); });
+  renderSyncStatus('connecting');
+}
+function pushToFirestore(){
+  const ref = syncDocRef();
+  if(!ref) return;
+  // el contenido pesado (dataUrl) nunca viaja por Firestore; solo la metadata del archivo (nombre, tipo, y su URL en Storage si ya se subió)
+  const payload = JSON.stringify(state, (key,val)=> key==='dataUrl' ? undefined : val);
+  const updatedAt = Date.now();
+  lastPushedUpdatedAt = updatedAt;
+  ref.set({ payload, updatedAt }).then(()=>renderSyncStatus('synced')).catch(e=>{ console.error('No se pudo sincronizar', e); renderSyncStatus('error'); });
+}
+function renderSyncStatus(state_){
+  const el = document.getElementById('sync-status');
+  if(!el) return;
+  if(!firebaseConfigured()){ el.textContent='⚠ Sincronización no configurada (falta pegar la config. de Firebase en el archivo).'; el.style.color='var(--danger)'; return; }
+  if(!state.config.syncCode){ el.textContent='Sin código de sincronización activo todavía.'; el.style.color='var(--ink-soft)'; return; }
+  const map = {synced:['✓ Sincronizado con el código "'+state.config.syncCode+'"','var(--accent)'], connecting:['Conectando…','var(--warm)'], waiting:['Código listo, esperando el primer guardado…','var(--warm)'], error:['⚠ No se pudo sincronizar en este momento','var(--danger)']};
+  const m = map[state_] || map.connecting;
+  el.textContent = m[0]; el.style.color = m[1];
+}
+function saveSyncCode(){
+  state.config.syncCode = document.getElementById('cfg-sync-code').value.trim();
+  saveState();
+  if(state.config.syncCode) startSyncListener();
+  else { if(fbUnsub){ fbUnsub(); fbUnsub=null; } renderSyncStatus(); }
+}
+
+/* ---------------- Sincronización de archivos (Firebase Storage) ---------------- */
+function syncActive(){ return !!(state.config.syncCode && initFirebaseIfNeeded()); }
+async function uploadFileToCloud(fileId, dataUrl){
+  if(!syncActive()) return null;
+  try{
+    const ref = fbStorage.ref('emanuel_sync/'+state.config.syncCode+'/files/'+fileId);
+    await ref.putString(dataUrl, 'data_url');
+    return await ref.getDownloadURL();
+  }catch(e){ console.error('No se pudo subir el archivo a la nube', e); return null; }
+}
+async function fetchFileFromCloud(url){
+  try{
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){ console.error('No se pudo descargar el archivo de la nube', e); return null; }
+}
+function deleteFileFromCloud(fileId){
+  if(!syncActive()) return;
+  try{ fbStorage.ref('emanuel_sync/'+state.config.syncCode+'/files/'+fileId).delete().catch(()=>{}); }catch(e){}
+}
+
+async function loadState(){
+  try{
+    const raw = await storageGetSafe('emanuel-state');
+    state = raw ? JSON.parse(raw) : defaultState();
+  }catch(e){
+    state = defaultState();
+  }
+  const d = defaultState();
+  if(!state.config) state.config = d.config;
+  if(state.config.semesterStart===undefined) state.config.semesterStart = d.config.semesterStart;
+  if(!state.config.horarioFilters) state.config.horarioFilters = d.config.horarioFilters;
+  if(state.config.weekStartDay===undefined) state.config.weekStartDay = d.config.weekStartDay;
+  if(!state.config.agendaFilters) state.config.agendaFilters = d.config.agendaFilters;
+  if(state.config.syncCode===undefined) state.config.syncCode = '';
+  if(!state.clothingOptions) state.clothingOptions = d.clothingOptions;
+  if(!state.materialOptions) state.materialOptions = d.materialOptions;
+  if(!state.roleOptions) state.roleOptions = d.roleOptions;
+  if(!state.tipoFormacionOptions) state.tipoFormacionOptions = d.tipoFormacionOptions;
+  if(!state.fileTypeOptions) state.fileTypeOptions = d.fileTypeOptions;
+  if(!state.extraTypeOptions) state.extraTypeOptions = d.extraTypeOptions;
+  if(!Array.isArray(state.extraBlocks)) state.extraBlocks = [];
+  if(state.config.horarioFilters.extras===undefined) state.config.horarioFilters.extras = true;
+  if(state.config.horarioFilters.hideCompleted===undefined) state.config.horarioFilters.hideCompleted = false;
+  if(!Array.isArray(state.carreras)) state.carreras = [];
+  state.courses.forEach(c=>{
+    if(c.ciclo===undefined) c.ciclo = null;
+    if(c.carreraId===undefined) c.carreraId = null;
+    if(!c.delegado) c.delegado = {name:'',phone:'',email:''};
+    if(!Array.isArray(c.workGroups)) c.workGroups = [];
+  });
+  if(Array.isArray(state.scheduleBlocks)){
+    state.scheduleBlocks.forEach(b=>{ if(b.startDate===undefined) b.startDate = state.config.semesterStart || null; });
+  }
+  state.events.forEach(e=>{
+    if(!Array.isArray(e.materials)) e.materials = e.materials? [e.materials] : [];
+    e.materials = e.materials.map(m=> (typeof m==='string') ? {id:uid(), quantity:1, material:m, description:''} : m);
+    if(e.plan===undefined) e.plan = null;
+    if(e.plan && e.plan.presentadorId===undefined) e.plan.presentadorId = null;
+    if(e.plan && Array.isArray(e.plan.steps)){
+      e.plan.steps.forEach(s=>{ if(s.vencimiento===undefined) s.vencimiento=''; if(s.venceFlagged===undefined) s.venceFlagged=false; });
+    }
+  });
+  if(!Array.isArray(state.files)) state.files = [];
+  state.files.forEach(f=>{ if(f.hasData===undefined) f.hasData = !!f.dataUrl; });
+}
+
+async function storageSetSafe(key, value){
+  try{
+    if(HAS_CLOUD_STORAGE){ const r = await window.storage.set(key, value, false); return !!r; }
+    localStorage.setItem('emanuel:'+key, value);
+    return true;
+  }catch(e){ console.error('Storage set failed for', key, e); return false; }
+}
+async function storageGetSafe(key){
+  try{
+    if(HAS_CLOUD_STORAGE){ const r = await window.storage.get(key, false); return r ? r.value : null; }
+    return localStorage.getItem('emanuel:'+key);
+  }catch(e){ return null; }
+}
+async function storageDeleteSafe(key){
+  try{
+    if(HAS_CLOUD_STORAGE){ await window.storage.delete(key, false); return; }
+    localStorage.removeItem('emanuel:'+key);
+  }catch(e){}
+}
+async function storageListSafe(prefix){
+  try{
+    if(HAS_CLOUD_STORAGE){
+      const r = await window.storage.list(prefix, false);
+      return r && r.keys ? r.keys : [];
+    }
+    const out = [];
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('emanuel:'+prefix)) out.push(k.slice('emanuel:'.length));
+    }
+    return out;
+  }catch(e){ return []; }
+}
+function showSaveStatus(ok){
+  let el = document.getElementById('save-status-toast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'save-status-toast';
+    el.style.cssText = 'position:fixed;bottom:14px;right:14px;padding:8px 14px;border-radius:8px;font-size:12.5px;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,0.2);display:flex;align-items:center;gap:10px;';
+    document.body.appendChild(el);
+  }
+  if(ok){ el.style.display='none'; return; }
+  el.style.display='flex';
+  el.style.background = 'var(--danger)';
+  el.style.color = '#fff';
+  el.innerHTML = '<span>No se pudo guardar. Tus datos siguen aquí en la app; reintentando…</span>'
+    + '<button onclick="retryNow()" style="background:#fff;color:var(--danger);border:none;border-radius:6px;padding:4px 8px;font-size:11.5px;font-weight:700;cursor:pointer;">Reintentar</button>';
+}
+function retryNow(){ clearTimeout(saveRetryTimer); saveRetryAttempts=0; doSave(); }
+
+let saveTimer=null;
+let saveRetryTimer=null;
+let saveRetryAttempts=0;
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 200);
+}
+async function doSave(){
+  // move any inline file content (kept only briefly right after upload/recording) into its own storage key,
+  // so the main state blob never grows large enough to fail to save. Content is only dropped from memory
+  // once it has actually been confirmed saved — a failed attempt is retried, never discarded.
+  const pending = state.files.filter(f=>f.dataUrl);
+  for(const f of pending){
+    const ok = await storageSetSafe('filedata:'+f.id, f.dataUrl);
+    if(ok){ f.hasData = true; delete f.dataUrl; }
+    else { f.hasData = false; }
+  }
+  // exclude any still-unsaved file content from the main blob (it stays only in memory until it saves)
+  const payload = JSON.stringify(state, (key,val)=> key==='dataUrl' ? undefined : val);
+  const ok = await storageSetSafe('emanuel-state', payload);
+  showSaveStatus(ok);
+  clearTimeout(saveRetryTimer);
+  if(ok){ saveRetryAttempts = 0; }
+  else {
+    saveRetryAttempts++;
+    const delay = Math.min(30000, 2000 * Math.pow(1.6, saveRetryAttempts));
+    saveRetryTimer = setTimeout(doSave, delay);
+  }
+  if(state.config.syncCode) pushToFirestore();
+}
+
+/* ---------------- Helpers ---------------- */
+function courseById(id){ return state.courses.find(c=>c.id===id); }
+function profById(id){ return state.professors.find(p=>p.id===id); }
+function typeById(id){ return state.eventTypes.find(t=>t.id===id); }
+function lightenColor(hex, ratio){
+  hex = (hex||'#5D6D7E').replace('#','');
+  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const r = parseInt(hex.substring(0,2),16)||93, g=parseInt(hex.substring(2,4),16)||109, b=parseInt(hex.substring(4,6),16)||126;
+  const nr = Math.round(r+(255-r)*ratio), ng = Math.round(g+(255-g)*ratio), nb = Math.round(b+(255-b)*ratio);
+  return '#'+[nr,ng,nb].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function eventColor(e){
+  const course = courseById(e.courseId);
+  if(course) return course.color;
+  const t = typeById(e.eventTypeId);
+  return t ? t.color : '#5D6D7E';
+}
+function stageColor(e){
+  const course = courseById(e.courseId);
+  return lightenColor(course ? course.color : '#1B4B43', 0.42);
+}
+function fmtDate(d){ return d.toISOString().slice(0,10); }
+function todayStr(){ return fmtDate(new Date()); }
+function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function planProgress(ev){
+  if(!ev.plan || !ev.plan.steps || ev.plan.steps.length===0) return 0;
+  const done = ev.plan.steps.filter(s=>s.done).reduce((s,st)=>s+Number(st.weight||0),0);
+  return Math.min(100, Math.round(done));
+}
+function isEventDone(ev){ return ev.plan && ev.plan.steps && ev.plan.steps.length>0 && planProgress(ev)>=100; }
+
+/* ---------------- Vista previa de impresión (genérica) ---------------- */
+function showPrintPreview(title, contentHtml){
+  document.getElementById('print-area').innerHTML = '<h2>'+title+'</h2>'+contentHtml;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>Vista previa de impresión</h2>';
+  html += '<div style="border:1px solid var(--line);border-radius:8px;padding:14px;max-height:60vh;overflow:auto;background:#fff;color:#000;"><h3 style="margin-top:0;">'+title+'</h3>'+contentHtml+'</div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar</button><button class="btn primary" onclick="window.print()">🖨️ Imprimir</button></div>';
+  openModal(html, true);
+}
+function printSchedule(){
+  const cfg = state.config;
+  const monday = startOfWeek(weekCursor);
+  const sunday = addDays(monday,6);
+  const days = orderDaysByWeekStart(cfg.days);
+  const title = 'Horario: '+monday.toLocaleDateString('es-ES',{day:'numeric',month:'short'})+' – '+sunday.toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'});
+  let html = '';
+  days.forEach(d=>{
+    const dt = dateForDayInWeek(d, monday);
+    const dateStr = fmtDate(dt);
+    let rows = [];
+    state.scheduleBlocks.filter(b=>b.day===d && blockOccursOnDate(b, monday)).forEach(b=>{
+      const course = courseById(b.courseId);
+      rows.push({time:b.start, end:b.end, label:(course?course.name:'Curso')+(b.classroom?' · '+b.classroom:''), tipo:b.type==='practica'?'Práctica':'Teoría'});
+    });
+    state.extraBlocks.filter(ex=> ex.mode==='unica' ? ex.date===dateStr : (ex.day===d && extraOccursOnDate(ex, monday))).forEach(ex=>{
+      rows.push({time:ex.start, end:ex.end, label:(ex.title||ex.type), tipo:'Extra: '+ex.type});
+    });
+    state.events.filter(e=>e.date===dateStr && e.time).forEach(e=>{
+      const t = typeById(e.eventTypeId); const course = courseById(e.courseId);
+      rows.push({time:e.time, end:'', label:e.title+(course?' ('+course.name+')':''), tipo:t?t.name:'Evento'});
+    });
+    stepsOnDate(dateStr).forEach(x=>{
+      rows.push({time:x.step.time||'', end:'', label:'🤝 '+(x.step.name||'Etapa')+' — '+x.event.title, tipo:'Etapa'});
+    });
+    rows.sort((a,b)=> (a.time||'').localeCompare(b.time||''));
+    html += '<h3 style="font-size:14px;margin-top:14px;">'+DOW_FULL[d]+' '+dt.getDate()+'/'+(dt.getMonth()+1)+'</h3>';
+    if(rows.length===0){ html += '<p style="font-size:12px;color:#555;">Sin actividades.</p>'; }
+    else {
+      html += '<table><tr><th>Hora</th><th>Actividad</th><th>Tipo</th></tr>';
+      rows.forEach(r=> html += '<tr><td>'+r.time+(r.end?'–'+r.end:'')+'</td><td>'+r.label+'</td><td>'+r.tipo+'</td></tr>');
+      html += '</table>';
+    }
+  });
+  showPrintPreview(title, html);
+}
+function toggleHorarioFullscreen(){
+  const el = document.getElementById('view-horario');
+  if(!document.fullscreenElement){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if(!req){ alert('Tu navegador no admite pantalla completa aquí.'); return; }
+    Promise.resolve(req.call(el)).catch(err=>{
+      alert('No se pudo activar pantalla completa en este entorno (puede estar bloqueado dentro de la vista previa de Claude). Prueba abriendo el archivo directamente en tu navegador.');
+    });
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fs-toggle-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '✕ Salir de pantalla completa' : '⛶ Pantalla completa';
+});
+let sidebarAutoHideTimer = null;
+function openSidebar(){
+  document.getElementById('sidebar').classList.remove('collapsed');
+  document.getElementById('sidebar-toggle').classList.add('sidebar-open');
+  document.getElementById('sidebar-toggle').textContent = '‹';
+  document.getElementById('sidebar-backdrop').classList.add('show');
+  clearTimeout(sidebarAutoHideTimer);
+  sidebarAutoHideTimer = setTimeout(closeSidebar, 4000);
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.add('collapsed');
+  document.getElementById('sidebar-toggle').classList.remove('sidebar-open');
+  document.getElementById('sidebar-toggle').textContent = '›';
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+  clearTimeout(sidebarAutoHideTimer);
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.contains('collapsed') ? openSidebar() : closeSidebar();
+}
+
+/* ---------------- Tabs ---------------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>switchView(btn.dataset.view));
+});
+function switchView(v){
+  currentView = v;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active', el.id==='view-'+v));
+  closeSidebar();
+  renderAll();
+}
+
+/* ---------------- Modal ---------------- */
+function openModal(html, wide){
+  document.getElementById('modal-root').innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this) closeModal()"><div class="modal-box'+(wide?' wide':'')+'">'+html+'</div></div>';
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; setTimeout(drainDeadlineQueue, 150); }
+
+/* ================= SCHEDULE (Horario) ================= */
+function dateForDayInWeek(dow, weekStart){
+  const startDay = (state && state.config && state.config.weekStartDay!=null) ? state.config.weekStartDay : 1;
+  const offset = ((dow-startDay)+7)%7;
+  return addDays(weekStart, offset);
+}
+function orderDaysByWeekStart(daysArr){
+  const startDay = (state && state.config && state.config.weekStartDay!=null) ? state.config.weekStartDay : 1;
+  return [...daysArr].sort((a,b)=> (((a-startDay)+7)%7) - (((b-startDay)+7)%7));
+}
+function blockOccursOnDate(b, monday){
+  if(!b.repeatWeeks) return true;
+  const refDate = b.startDate || state.config.semesterStart;
+  if(!refDate) return true;
+  const refMonday = startOfWeek(new Date(refDate+'T00:00:00'));
+  const diffWeeks = Math.round((monday - refMonday)/(7*24*3600*1000));
+  return diffWeeks>=0 && diffWeeks < b.repeatWeeks;
+}
+const SCHED_PX_PER_MIN = 1.1;
+let draggedSchedItem = null;
+function snapTime(minutes){
+  minutes = Math.max(0, Math.round(minutes/5)*5);
+  const hh = Math.floor(minutes/60), mm = minutes%60;
+  return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+function onSchedDragStart(evt, kind, id){
+  draggedSchedItem = {kind, id};
+  evt.dataTransfer.effectAllowed = 'move';
+  try{ evt.dataTransfer.setData('text/plain', kind+':'+id); }catch(e){}
+}
+function onSchedDragOverCol(evt){ evt.preventDefault(); }
+function onSchedDropCol(evt, dateStr, dayIdx){
+  evt.preventDefault();
+  if(!draggedSchedItem) return;
+  const rect = evt.currentTarget.getBoundingClientRect();
+  const offsetY = evt.clientY - rect.top;
+  const minutes = Math.round(offsetY/SCHED_PX_PER_MIN) + state.config.startHour*60;
+  const timeStr = snapTime(minutes);
+  applySchedReschedule(draggedSchedItem.kind, draggedSchedItem.id, dateStr, dayIdx, timeStr);
+  draggedSchedItem = null;
+}
+function shiftEndTime(start, end, newStart){
+  const dur = timeToMin(end) - timeToMin(start);
+  return snapTime(timeToMin(newStart) + Math.max(dur,5));
+}
+function applySchedReschedule(kind, id, dateStr, dayIdx, timeStr){
+  if(kind==='block'){
+    const b = state.scheduleBlocks.find(x=>x.id===id); if(!b) return;
+    b.end = shiftEndTime(b.start, b.end, timeStr);
+    b.start = timeStr; b.day = dayIdx;
+    saveState(); renderSchedule();
+  } else if(kind==='event'){
+    const e = state.events.find(x=>x.id===id); if(!e) return;
+    e.date = dateStr; e.time = timeStr;
+    saveState(); renderAll();
+  } else if(kind==='stage'){
+    const [eid,sid] = id.split('::');
+    const ev = state.events.find(x=>x.id===eid); if(!ev||!ev.plan) return;
+    const st = ev.plan.steps.find(s=>s.id===sid); if(!st) return;
+    st.date = dateStr; st.time = timeStr;
+    saveState(); renderAll();
+  } else if(kind==='extra'){
+    const ex = state.extraBlocks.find(x=>x.id===id); if(!ex) return;
+    ex.end = shiftEndTime(ex.start, ex.end, timeStr);
+    ex.start = timeStr;
+    if(ex.mode==='unica') ex.date = dateStr; else ex.day = dayIdx;
+    saveState(); renderSchedule();
+  }
+}
+function handleEmptyScheduleClick(evt, dateStr, dayIdx){
+  if(evt.target !== evt.currentTarget) return;
+  clearTimeout(window._schedClickTimer);
+  const rect = evt.currentTarget.getBoundingClientRect();
+  const offsetY = evt.clientY - rect.top;
+  window._schedClickTimer = setTimeout(()=>{
+    const minutes = Math.round(offsetY/SCHED_PX_PER_MIN) + state.config.startHour*60;
+    openScheduleAddChooser(dateStr, snapTime(minutes));
+  }, 260);
+}
+function openScheduleAddChooser(dateStr, timeStr){
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>Agregar aquí</h2>';
+  html += '<p class="meta-line">'+dateStr+' · '+timeStr+'</p>';
+  html += '<div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap;">';
+  html += '<button class="btn primary" onclick="closeModal();openBlockForm(null,{date:\''+dateStr+'\',time:\''+timeStr+'\'});">+ Bloque de curso</button>';
+  html += '<button class="btn" onclick="closeModal();openEventForm(null,{date:\''+dateStr+'\',start:\''+timeStr+'\'});">+ Evento</button>';
+  html += '<button class="btn" onclick="closeModal();openExtraForm(null,{date:\''+dateStr+'\',time:\''+timeStr+'\'});">+ Extra</button>';
+  html += '</div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>';
+  openModal(html);
+}
+function openEventFromBlock(blockId){
+  const b = state.scheduleBlocks.find(x=>x.id===blockId);
+  if(!b) return;
+  const monday = startOfWeek(weekCursor);
+  const dt = dateForDayInWeek(b.day, monday);
+  openEventForm(null, {courseId:b.courseId, date:fmtDate(dt), start:b.start, end:b.end});
+}
+function renderSchedule(){
+  const wrap = document.getElementById('schedule-wrap');
+  const cfg = state.config;
+  const days = orderDaysByWeekStart(cfg.days);
+  const filters = Object.assign({courses:true, events:true, stages:true, extras:true, hideCompleted:false}, cfg.horarioFilters||{});
+  document.getElementById('filter-courses').checked = filters.courses;
+  document.getElementById('filter-events').checked = filters.events;
+  document.getElementById('filter-stages').checked = filters.stages;
+  document.getElementById('filter-extras').checked = filters.extras;
+  document.getElementById('filter-hide-done').checked = filters.hideCompleted;
+  const monday = startOfWeek(weekCursor);
+  const sunday = addDays(monday,6);
+  const rangeLbl = monday.toLocaleDateString('es-ES',{day:'numeric',month:'short'}) + ' – ' + sunday.toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('week-range-label').textContent = rangeLbl;
+  if(days.length===0){ wrap.innerHTML = '<div class="empty">Configura los días de clase en Ajustes.</div>'; return; }
+  const pxPerMin = SCHED_PX_PER_MIN;
+  const totalMin = (cfg.endHour-cfg.startHour)*60;
+  const gridHeight = totalMin*pxPerMin;
+  const today = todayStr();
+
+  let cols = '60px ' + days.map(()=> '1fr').join(' ');
+  let html = '<div class="sched-grid" style="grid-template-columns:'+cols+';">';
+  html += '<div class="sched-head"></div>';
+  days.forEach(d=>{
+    const dt = dateForDayInWeek(d, monday);
+    const isToday = fmtDate(dt)===today;
+    html += '<div class="sched-head" style="'+(isToday?'color:var(--accent);background:var(--accent-soft);border-radius:6px 6px 0 0;':'')+'">'+DOW[d]+'<br><span style="font-weight:400;font-size:11px;">'+dt.getDate()+'/'+(dt.getMonth()+1)+'</span></div>';
+  });
+
+  // time gutter
+  html += '<div class="sched-time-col" style="position:relative;height:'+gridHeight+'px;">';
+  for(let h=cfg.startHour; h<=cfg.endHour; h++){
+    const top = (h-cfg.startHour)*60*pxPerMin;
+    html += '<div class="time-label" style="position:absolute;top:'+top+'px;right:6px;">'+h+':00</div>';
+  }
+  html += '</div>';
+
+  days.forEach(d=>{
+    const dt = dateForDayInWeek(d, monday);
+    const dateStr = fmtDate(dt);
+    const isToday = dateStr===today;
+    html += '<div class="sched-day-col" style="height:'+gridHeight+'px;'+(isToday?'background:var(--accent-soft);':'')+'"'
+          + ' onclick="handleEmptyScheduleClick(event,\''+dateStr+'\','+d+')"'
+          + ' ondblclick="clearTimeout(window._schedClickTimer);showDayEvents(\''+dateStr+'\')"'
+          + ' ondragover="onSchedDragOverCol(event)" ondrop="onSchedDropCol(event,\''+dateStr+'\','+d+')">';
+    for(let h=cfg.startHour; h<=cfg.endHour; h++){
+      const top=(h-cfg.startHour)*60*pxPerMin;
+      html += '<div class="sched-hourline" style="position:absolute;top:'+top+'px;left:0;right:0;"></div>';
+    }
+    const blocks = filters.courses ? state.scheduleBlocks.filter(b=>b.day===d && blockOccursOnDate(b, monday)) : [];
+    const blockGeom = blocks.map(b=>{
+      const startMin = timeToMin(b.start) - cfg.startHour*60;
+      const endMin = timeToMin(b.end) - cfg.startHour*60;
+      return {b, startMin, endMin, top: startMin*pxPerMin, height: Math.max(24,(endMin-startMin)*pxPerMin), startAbs: timeToMin(b.start), endAbs: timeToMin(b.end)};
+    });
+    blockGeom.forEach(g=>{
+      const course = courseById(g.b.courseId);
+      const color = course ? course.color : '#5D6D7E';
+      html += '<div class="sched-block" draggable="true" ondragstart="onSchedDragStart(event,\'block\',\''+g.b.id+'\')" style="top:'+g.top+'px;height:'+g.height+'px;background:'+color+';" onclick="event.stopPropagation();openBlockDetail(\''+g.b.id+'\')">'
+            + '<b>'+(course?course.name:'Curso')+'</b>'
+            + '<span class="meta">'+g.b.start+'–'+g.b.end+' · '+(g.b.type==='practica'?'Práctica':'Teoría')+(g.b.classroom?' · '+g.b.classroom:'')+'</span>'
+            + '</div>';
+    });
+    // overlay extra (extracurricular) blocks
+    const dayExtras = filters.extras ? state.extraBlocks.filter(ex=> ex.mode==='unica' ? ex.date===dateStr : (ex.day===d && extraOccursOnDate(ex, monday))) : [];
+    dayExtras.forEach(ex=>{
+      const startMin = timeToMin(ex.start) - cfg.startHour*60;
+      const endMin = timeToMin(ex.end) - cfg.startHour*60;
+      if(endMin<0 || startMin>totalMin) return;
+      const top = startMin*pxPerMin, height = Math.max(22,(endMin-startMin)*pxPerMin);
+      html += '<div class="sched-block" draggable="true" ondragstart="onSchedDragStart(event,\'extra\',\''+ex.id+'\')" style="top:'+top+'px;height:'+height+'px;background:'+(ex.color||'#5D6D7E')+';border:1.5px solid rgba(255,255,255,0.6);" onclick="event.stopPropagation();openExtraDetail(\''+ex.id+'\')">'
+            + '<b>⭐ '+(ex.title||ex.type)+'</b><span class="meta">'+ex.start+'–'+ex.end+' · '+ex.type+'</span></div>';
+    });
+    // overlay standalone events with a time, on this exact date
+    const dayEvents = filters.events ? state.events.filter(ev=>ev.date===dateStr && ev.time && !(filters.hideCompleted && isEventDone(ev))) : [];
+    dayEvents.forEach(ev=>{
+      const t = typeById(ev.eventTypeId);
+      const color = eventColor(ev);
+      const evAbsMin = timeToMin(ev.time);
+      const startMin = evAbsMin - cfg.startHour*60;
+      if(startMin<0 || startMin>totalMin) return;
+      const height = Math.max(20,26*1.1);
+      const overlapping = blockGeom.find(g=> evAbsMin >= g.startAbs && evAbsMin < g.endAbs);
+      const top = overlapping ? (overlapping.top + overlapping.height - height) : startMin*pxPerMin;
+      const hasPlan = ev.plan && ev.plan.steps && ev.plan.steps.length;
+      const done = isEventDone(ev);
+      html += '<div class="sched-block" draggable="true" ondragstart="onSchedDragStart(event,\'event\',\''+ev.id+'\')" style="top:'+top+'px;height:'+height+'px;background:'+color+';border:1.5px dashed rgba(255,255,255,0.85);opacity:0.92;'+(done?'text-decoration:line-through;':'')+'" onclick="event.stopPropagation();openEventForm(\''+ev.id+'\')">'
+            + '<b>'+(t?t.icon+' ':'')+ev.title+(hasPlan?' ('+planProgress(ev)+'%)':'')+'</b><span class="meta">'+ev.time+'</span></div>';
+    });
+    // overlay plan stages (etapas) scheduled with a time on this exact date
+    (filters.stages ? stepsOnDate(dateStr).filter(x=>x.step.time && !(filters.hideCompleted && x.step.done)) : []).forEach(x=>{
+      const stAbsMin = timeToMin(x.step.time);
+      const startMin = stAbsMin - cfg.startHour*60;
+      if(startMin<0 || startMin>totalMin) return;
+      const height = Math.max(20,26*1.1);
+      const overlapping = blockGeom.find(g=> stAbsMin >= g.startAbs && stAbsMin < g.endAbs);
+      const top = overlapping ? (overlapping.top + overlapping.height - height) : startMin*pxPerMin;
+      html += '<div class="sched-block" draggable="true" ondragstart="onSchedDragStart(event,\'stage\',\''+x.event.id+'::'+x.step.id+'\')" style="top:'+top+'px;height:'+height+'px;background:'+stageColor(x.event)+';border:1.5px dotted rgba(255,255,255,0.85);opacity:0.92;'+(x.step.done?'text-decoration:line-through;':'')+'" onclick="event.stopPropagation();openStageQuickView(\''+x.event.id+'\',\''+x.step.id+'\')">'
+            + '<b>🤝 '+(x.step.name||'Etapa')+'</b><span class="meta">'+x.step.time+' · '+x.event.title+'</span></div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function openBlockDetail(id){
+  const b = state.scheduleBlocks.find(x=>x.id===id);
+  if(!b) return;
+  const course = courseById(b.courseId);
+  const prof = profById(b.professorId || (course && course.professorId));
+  const courseEvents = state.events.filter(e=>e.courseId===b.courseId).sort((a,c)=>a.date.localeCompare(c.date));
+  const courseFiles = state.files.filter(f=>f.courseId===b.courseId).sort((a,c)=>c.date.localeCompare(a.date));
+
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(course?course.name:'Curso')+'</h2>';
+  html += '<p class="meta-line">'+DOW_FULL[b.day]+' · '+b.start+'–'+b.end+' · '+(b.type==='practica'?'Práctica':'Teoría')+(b.repeatWeeks?' · '+b.repeatWeeks+' semanas desde '+(b.startDate||'—'):'')+'</p>';
+  if(b.classroom) html += '<p class="meta-line">Aula: '+b.classroom+'</p>';
+  if(prof) html += '<p class="meta-line">Profesor: '+prof.name+(prof.email?' · '+prof.email:'')+'</p>';
+  if(course && course.link) html += '<p class="meta-line"><a href="'+course.link+'" target="_blank">Enlace del curso</a></p>';
+
+  html += '<div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap;margin-top:12px;">';
+  html += '<button class="btn small" onclick="closeModal();openBlockForm(\''+b.id+'\')">Editar bloque</button>';
+  html += '<button class="btn small danger" onclick="deleteBlock(\''+b.id+'\')">Eliminar bloque</button>';
+  html += '<button class="btn small primary" onclick="closeModal();openEventFromBlock(\''+b.id+'\')">+ Evento</button>';
+  html += '<button class="btn small warm" onclick="closeModal();openRecordPanel(\''+b.courseId+'\')">🎙️ Grabar</button>';
+  html += '<button class="btn small warm" onclick="closeModal();openFileUpload(\''+b.courseId+'\')">📎 Subir archivo</button>';
+  html += '</div>';
+
+  if(courseEvents.length){
+    html += '<h3 style="font-size:13.5px;margin-top:16px;">Eventos de este curso</h3>';
+    courseEvents.slice(0,6).forEach(e=>{
+      const t = typeById(e.eventTypeId);
+      const hasPlan = e.plan && e.plan.steps && e.plan.steps.length;
+      const done = isEventDone(e);
+      html += '<div class="agenda-item" style="margin-top:6px;" onclick="closeModal();openEventForm(\''+e.id+'\')">'
+            + '<span class="swatch" style="background:'+eventColor(e)+'"></span>'
+            + '<div class="body"><div class="title" style="'+(done?'text-decoration:line-through;opacity:0.7;':'')+'">'+e.title+'</div><div class="sub">'+e.date+(e.time?' · '+e.time:'')+(e.grade!=null?' · Nota: '+e.grade:'')+'</div></div>'
+            + (hasPlan?'<span class="badge">'+planProgress(e)+'%</span>':'')
+            + '</div>';
+    });
+  }
+  if(courseFiles.length){
+    html += '<h3 style="font-size:13.5px;margin-top:16px;">Archivos de este curso</h3>';
+    courseFiles.slice(0,6).forEach(f=> html += fileRowHtml(f));
+  }
+
+  openModal(html);
+}
+
+function deleteBlock(id){
+  state.scheduleBlocks = state.scheduleBlocks.filter(b=>b.id!==id);
+  saveState(); closeModal(); renderSchedule();
+}
+
+function openBlockForm(id, preset){
+  const b = id ? state.scheduleBlocks.find(x=>x.id===id) : null;
+  if(state.courses.length===0){ openModal('<button class="modal-close" onclick="closeModal()">✕</button><h2>Primero crea un curso</h2><p class="meta-line">Necesitas al menos un curso creado para agregarlo al horario.</p><div class="modal-actions"><button class="btn primary" onclick="closeModal();switchView(\'cursos\');openCourseForm();">Crear curso</button></div>'); return; }
+  preset = preset || {};
+  const presetDay = preset.date ? new Date(preset.date+'T00:00:00').getDay() : null;
+  const defaultCourseId = b ? b.courseId : state.courses[0].id;
+  const defaultClassroom = b ? (b.classroom||'') : ((courseById(defaultCourseId)||{}).classroom||'');
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(b?'Editar bloque':'Nuevo bloque de horario')+'</h2>';
+  html += '<div class="field"><label>Curso</label><select id="bf-course" onchange="onBlockCourseChange()">'+state.courses.map(c=>'<option value="'+c.id+'" '+(b&&b.courseId===c.id?'selected':'')+'>'+c.name+'</option>').join('')+'</select></div>';
+  html += '<div class="field"><label>Día de la semana</label><select id="bf-day">'+state.config.days.map(d=>'<option value="'+d+'" '+((b?b.day===d:presetDay===d)?'selected':'')+'>'+DOW_FULL[d]+'</option>').join('')+'</select></div>';
+  html += '<div class="field-row"><div class="field"><label>Hora inicio</label><input type="time" id="bf-start" value="'+(b?b.start:(preset.time||'08:00'))+'"></div><div class="field"><label>Hora fin</label><input type="time" id="bf-end" value="'+(b?b.end:'09:00')+'"></div></div>';
+  html += '<div class="field-row"><div class="field"><label>Tipo</label><select id="bf-type"><option value="teoria" '+(b&&b.type==='teoria'?'selected':'')+'>Teoría</option><option value="practica" '+(b&&b.type==='practica'?'selected':'')+'>Práctica</option></select></div>';
+  html += '<div class="field"><label>Repetir (semanas)</label><input type="number" id="bf-repeat" min="1" value="'+(b?b.repeatWeeks||16:16)+'"></div></div>';
+  html += '<div class="field"><label>Fecha de inicio</label><input type="date" id="bf-start-date" value="'+(b&&b.startDate?b.startDate:(preset.date||state.config.semesterStart||todayStr()))+'"></div>';
+  html += '<p class="meta-line" style="margin-top:-6px;">Desde esta fecha se cuentan las semanas de repetición de este bloque.</p>';
+  html += '<div class="field"><label>Aula</label><input type="text" id="bf-classroom" value="'+defaultClassroom+'" placeholder="Ej. Pabellón A - 204"></div>';
+  html += '<p class="meta-line" style="margin-top:-6px;">Se rellena con el aula registrada en el curso; puedes cambiarla aquí para este bloque.</p>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveBlock('+(b?"'"+b.id+"'":'null')+')">Guardar</button></div>';
+  openModal(html);
+}
+function onBlockCourseChange(){
+  const c = courseById(document.getElementById('bf-course').value);
+  document.getElementById('bf-classroom').value = (c && c.classroom) || '';
+}
+function saveBlock(id){
+  const course = document.getElementById('bf-course').value;
+  const data = {
+    courseId: course,
+    day: Number(document.getElementById('bf-day').value),
+    start: document.getElementById('bf-start').value,
+    end: document.getElementById('bf-end').value,
+    type: document.getElementById('bf-type').value,
+    repeatWeeks: Number(document.getElementById('bf-repeat').value)||null,
+    startDate: document.getElementById('bf-start-date').value || null,
+    classroom: document.getElementById('bf-classroom').value,
+    professorId: (courseById(course)||{}).professorId || null
+  };
+  if(id){ Object.assign(state.scheduleBlocks.find(b=>b.id===id), data); }
+  else{ state.scheduleBlocks.push(Object.assign({id:uid()},data)); }
+  saveState(); closeModal(); renderSchedule();
+}
+
+/* ================= EXTRA (actividades extracurriculares) ================= */
+function extraOccursOnDate(ex, monday){
+  if(ex.mode==='unica') return false; // las únicas se comparan por fecha exacta, no por semana
+  if(!ex.repeatWeeks) return true;
+  const refDate = ex.startDate || todayStr();
+  const refMonday = startOfWeek(new Date(refDate+'T00:00:00'));
+  const diffWeeks = Math.round((monday - refMonday)/(7*24*3600*1000));
+  return diffWeeks>=0 && diffWeeks < ex.repeatWeeks;
+}
+function openExtraForm(id, preset){
+  const ex = id ? state.extraBlocks.find(x=>x.id===id) : null;
+  preset = preset || {};
+  const presetDay = preset.date ? new Date(preset.date+'T00:00:00').getDay() : (state.config.days[0]||1);
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(ex?'Editar extra':'Nueva actividad extra')+'</h2>';
+  html += '<div class="field"><label>Tipo</label><select id="xf-type">'+state.extraTypeOptions.map(t=>'<option value="'+t.replace(/"/g,'&quot;')+'" '+(ex&&ex.type===t?'selected':'')+'>'+t+'</option>').join('')+'</select>'
+    + '<div style="margin-top:6px;display:flex;gap:6px;"><input type="text" id="xf-type-new" placeholder="Agregar otro tipo" style="flex:1;padding:6px 8px;border:1.3px solid var(--line);border-radius:8px;font-size:12.5px;"><button type="button" class="btn small ghost" onclick="addExtraTypeOption()">+ Agregar</button></div></div>';
+  html += '<div class="field"><label>Nombre (opcional)</label><input type="text" id="xf-title" value="'+(ex?(ex.title||'').replace(/"/g,'&quot;'):'')+'" placeholder="Ej. Ensayo con la banda"></div>';
+  html += '<div class="field"><label>Repetición</label><div style="display:flex;gap:8px;">'
+    + '<label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="radio" name="xf-mode" value="unica" '+(!ex||ex.mode==='unica'?'checked':'')+' onchange="toggleExtraMode()" style="width:auto;"> Única vez</label>'
+    + '<label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="radio" name="xf-mode" value="recurrente" '+(ex&&ex.mode==='recurrente'?'checked':'')+' onchange="toggleExtraMode()" style="width:auto;"> Recurrente</label>'
+    + '</div></div>';
+  html += '<div id="xf-unica-fields"><div class="field"><label>Fecha</label><input type="date" id="xf-date" value="'+(ex&&ex.date?ex.date:(preset.date||todayStr()))+'"></div></div>';
+  html += '<div id="xf-recurrente-fields" style="display:none;">';
+  html += '<div class="field"><label>Día de la semana</label><select id="xf-day">'+DOW_FULL.map((label,i)=>'<option value="'+i+'" '+((ex&&ex.mode==='recurrente'?ex.day===i:presetDay===i)?'selected':'')+'>'+label+'</option>').join('')+'</select></div>';
+  html += '<div class="field-row"><div class="field"><label>Fecha de inicio</label><input type="date" id="xf-start-date" value="'+(ex&&ex.startDate?ex.startDate:(preset.date||todayStr()))+'"></div><div class="field"><label>Repetir (semanas, vacío = indefinido)</label><input type="number" id="xf-repeat" min="1" value="'+(ex&&ex.repeatWeeks?ex.repeatWeeks:'')+'"></div></div>';
+  html += '</div>';
+  html += '<div class="field-row"><div class="field"><label>Hora inicio</label><input type="time" id="xf-start" value="'+(ex?ex.start:(preset.time||'18:00'))+'"></div><div class="field"><label>Hora fin</label><input type="time" id="xf-end" value="'+(ex?ex.end:'19:00')+'"></div></div>';
+  html += '<div class="field"><label>Color</label><div class="swatch-row" id="xf-color-row">'+PALETTE.map(col=>'<span class="swatch-opt '+((ex?ex.color:PALETTE[8])===col?'selected':'')+'" style="background:'+col+'" onclick="pickExtraColor(this,\''+col+'\')"></span>').join('')+'</div><input type="hidden" id="xf-color" value="'+(ex?ex.color:PALETTE[8])+'"></div>';
+  html += '<div class="modal-actions">';
+  if(ex) html += '<button class="btn danger" onclick="deleteExtra(\''+ex.id+'\')">Eliminar</button>';
+  html += '<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveExtra('+(ex?"'"+ex.id+"'":'null')+')">Guardar</button></div>';
+  openModal(html);
+  if(ex && ex.mode==='recurrente'){ document.getElementById('xf-unica-fields').style.display='none'; document.getElementById('xf-recurrente-fields').style.display='block'; }
+}
+function toggleExtraMode(){
+  const mode = document.querySelector('input[name="xf-mode"]:checked').value;
+  document.getElementById('xf-unica-fields').style.display = mode==='unica' ? 'block' : 'none';
+  document.getElementById('xf-recurrente-fields').style.display = mode==='recurrente' ? 'block' : 'none';
+}
+function pickExtraColor(el,col){
+  document.querySelectorAll('#xf-color-row .swatch-opt').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('xf-color').value = col;
+}
+function addExtraTypeOption(){
+  const input = document.getElementById('xf-type-new');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!state.extraTypeOptions.includes(val)) state.extraTypeOptions.push(val);
+  saveState();
+  const sel = document.getElementById('xf-type');
+  const opt = document.createElement('option');
+  opt.value = val; opt.textContent = val;
+  sel.appendChild(opt); sel.value = val;
+  input.value = '';
+}
+function saveExtra(id){
+  const mode = document.querySelector('input[name="xf-mode"]:checked').value;
+  const data = {
+    type: document.getElementById('xf-type').value,
+    title: document.getElementById('xf-title').value,
+    mode: mode,
+    date: mode==='unica' ? document.getElementById('xf-date').value : null,
+    day: mode==='recurrente' ? Number(document.getElementById('xf-day').value) : null,
+    startDate: mode==='recurrente' ? (document.getElementById('xf-start-date').value||null) : null,
+    repeatWeeks: mode==='recurrente' ? (Number(document.getElementById('xf-repeat').value)||null) : null,
+    start: document.getElementById('xf-start').value,
+    end: document.getElementById('xf-end').value,
+    color: document.getElementById('xf-color').value
+  };
+  if(id){ Object.assign(state.extraBlocks.find(x=>x.id===id), data); }
+  else{ state.extraBlocks.push(Object.assign({id:uid()},data)); }
+  saveState(); closeModal(); renderSchedule();
+}
+function deleteExtra(id){
+  state.extraBlocks = state.extraBlocks.filter(x=>x.id!==id);
+  saveState(); closeModal(); renderSchedule();
+}
+function openExtraDetail(id){
+  const ex = state.extraBlocks.find(x=>x.id===id);
+  if(!ex) return;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(ex.title||ex.type)+'</h2>';
+  html += '<p class="meta-line">'+ex.type+(ex.title?' · '+ex.title:'')+'</p>';
+  if(ex.mode==='unica') html += '<p class="meta-line">'+ex.date+' · '+ex.start+'–'+ex.end+'</p>';
+  else html += '<p class="meta-line">'+DOW_FULL[ex.day]+' · '+ex.start+'–'+ex.end+(ex.repeatWeeks?' · '+ex.repeatWeeks+' semanas desde '+(ex.startDate||'—'):' · indefinido')+'</p>';
+  html += '<div class="modal-actions"><button class="btn" onclick="openExtraForm(\''+ex.id+'\')">Editar</button><button class="btn danger" onclick="deleteExtra(\''+ex.id+'\')">Eliminar</button></div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+  openModal(html);
+}
+
+/* ================= EVENTS (Agenda + Calendario) ================= */
+function openEventForm(id, preset){
+  const e = id ? state.events.find(x=>x.id===id) : null;
+  preset = preset || {};
+  const presetCourseId = e ? e.courseId : preset.courseId;
+  const presetDate = e ? e.date : (preset.date || todayStr());
+  const presetTime = e ? (e.time||'') : (preset.start || '');
+  const eClothing = e ? e.clothing : null;
+  tempEventMaterials = (e && Array.isArray(e.materials)) ? JSON.parse(JSON.stringify(e.materials)) : [];
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(e?'Editar evento':'Nuevo evento')+'</h2>';
+  html += '<div class="field"><label>Título</label><input type="text" id="ef-title" value="'+(e?e.title.replace(/"/g,'&quot;'):'')+'" placeholder="Ej. Informe de laboratorio 2"></div>';
+  html += '<div class="field-row"><div class="field"><label>Tipo de evento</label><select id="ef-type">'+state.eventTypes.map(t=>'<option value="'+t.id+'" '+(e&&e.eventTypeId===t.id?'selected':'')+'>'+t.icon+' '+t.name+'</option>').join('')+'</select></div>';
+  html += '<div class="field"><label>Curso (opcional)</label><select id="ef-course"><option value="">— Ninguno —</option>'+state.courses.map(c=>'<option value="'+c.id+'" '+(presetCourseId===c.id?'selected':'')+'>'+c.name+'</option>').join('')+'</select></div></div>';
+  html += '<div class="field-row"><div class="field"><label>Fecha</label><input type="date" id="ef-date" value="'+presetDate+'"></div><div class="field"><label>Hora</label><input type="time" id="ef-time" value="'+presetTime+'"></div></div>';
+  html += '<div class="field"><label>Alarma</label><select id="ef-alarm"><option value="">Sin alarma</option><option value="10" '+(e&&e.alarmMinutesBefore==10?'selected':'')+'>10 min antes</option><option value="30" '+(e&&e.alarmMinutesBefore==30?'selected':'')+'>30 min antes</option><option value="60" '+(e&&e.alarmMinutesBefore==60?'selected':'')+'>1 hora antes</option><option value="1440" '+(e&&e.alarmMinutesBefore==1440?'selected':'')+'>1 día antes</option></select></div>';
+  html += '<div class="field"><label>Ropa / vestimenta</label><select id="ef-clothing">'+state.clothingOptions.map((o,idx)=>'<option value="'+o.replace(/"/g,'&quot;')+'" '+((eClothing? eClothing===o : idx===0)?'selected':'')+'>'+o+'</option>').join('')+'</select>'
+    + '<div style="margin-top:6px;display:flex;gap:6px;"><input type="text" id="ef-clothing-new" placeholder="Agregar otra opción de ropa" style="flex:1;padding:6px 8px;border:1.3px solid var(--line);border-radius:8px;font-size:12.5px;"><button type="button" class="btn small ghost" onclick="addClothingOption()">+ Agregar</button></div></div>';
+  html += '<div class="field"><label>Materiales a llevar</label><div id="ef-materials-rows"></div>';
+  html += '<button class="btn small ghost" type="button" onclick="addMaterialRow()">+ Agregar material</button>';
+  html += '<div style="margin-top:6px;display:flex;gap:6px;"><input type="text" id="ef-material-new" placeholder="Agregar otra opción de material" style="flex:1;padding:6px 8px;border:1.3px solid var(--line);border-radius:8px;font-size:12.5px;"><button type="button" class="btn small ghost" onclick="addMaterialOption()">+ Agregar opción</button></div></div>';
+  html += '<div class="field"><label>Notas</label><textarea id="ef-notes">'+(e?e.notes||'':'')+'</textarea></div>';
+  html += '<div class="field"><label>Nota obtenida (opcional)</label><input type="number" step="0.1" id="ef-grade" value="'+(e&&e.grade!=null?e.grade:'')+'" placeholder="Se registrará al calificar"></div>';
+  html += '<div class="field" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;">';
+  html += '<label style="margin-bottom:6px;">Programa de cumplimiento</label>';
+  if(e && e.plan && e.plan.steps && e.plan.steps.length){
+    const pct = planProgress(e);
+    const doneCount = e.plan.steps.filter(s=>s.done).length;
+    html += '<p class="meta-line" style="'+(pct>=100?'text-decoration:line-through;':'')+'">'+(e.plan.mode==='grupal'?'Trabajo grupal':'Trabajo individual')+' · '+doneCount+'/'+e.plan.steps.length+' etapas · <b>'+pct+'% completado</b>'+(pct>=100?' ✓ Cumplido':'')+'</p>';
+  } else {
+    html += '<p class="meta-line">Aún no configurado. Úsalo para tareas grupales o individuales con etapas y % de avance.</p>';
+  }
+  html += '<button class="btn small warm" type="button" style="margin-top:6px;" onclick="ensureEventSavedThenPlan('+(e?"'"+e.id+"'":'null')+')">📋 Programa de cumplimiento</button>';
+  if(e && e.plan && e.plan.steps && e.plan.steps.length){
+    html += '<button class="btn small" type="button" style="margin-top:6px;margin-left:6px;" onclick="exportPlanReport(\''+e.id+'\', null)">🖨️ Emitir reporte PDF</button>';
+  }
+  html += '</div>';
+  html += '<div class="modal-actions">';
+  if(e) html += '<button class="btn danger" onclick="deleteEvent(\''+e.id+'\')">Eliminar</button>';
+  html += '<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveEvent('+(e?"'"+e.id+"'":'null')+')">Guardar</button></div>';
+  openModal(html);
+  renderMaterialRows();
+}
+let tempEventMaterials = [];
+function renderMaterialRows(){
+  const c = document.getElementById('ef-materials-rows');
+  if(!c) return;
+  c.innerHTML = tempEventMaterials.map((m,idx)=>
+    '<div class="grade-item-row" style="flex-wrap:wrap;">'
+    +'<input type="number" min="1" value="'+(m.quantity||1)+'" onchange="tempEventMaterials['+idx+'].quantity=Number(this.value)||1" style="width:56px;">'
+    +'<select onchange="tempEventMaterials['+idx+'].material=this.value" style="flex:1.2;min-width:120px;">'+state.materialOptions.map(o=>'<option value="'+o.replace(/"/g,'&quot;')+'" '+(m.material===o?'selected':'')+'>'+o+'</option>').join('')+'</select>'
+    +'<input type="text" placeholder="Descripción (opcional)" value="'+(m.description||'').replace(/"/g,'&quot;')+'" onchange="tempEventMaterials['+idx+'].description=this.value" style="flex:2;min-width:140px;">'
+    +'<button class="btn small danger" type="button" onclick="removeMaterialRow('+idx+')">✕</button></div>'
+  ).join('') || '<p class="meta-line">Aún no agregas materiales.</p>';
+}
+function addMaterialRow(){
+  tempEventMaterials.push({id:uid(), quantity:1, material: state.materialOptions[0]||'', description:''});
+  renderMaterialRows();
+}
+function removeMaterialRow(idx){ tempEventMaterials.splice(idx,1); renderMaterialRows(); }
+function addClothingOption(){
+  const input = document.getElementById('ef-clothing-new');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!state.clothingOptions.includes(val)) state.clothingOptions.push(val);
+  saveState();
+  const sel = document.getElementById('ef-clothing');
+  sel.innerHTML = state.clothingOptions.map(o=>'<option value="'+o.replace(/"/g,'&quot;')+'">'+o+'</option>').join('');
+  sel.value = val;
+  input.value = '';
+}
+function addMaterialOption(){
+  const input = document.getElementById('ef-material-new');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!state.materialOptions.includes(val)) state.materialOptions.push(val);
+  saveState();
+  input.value = '';
+  renderMaterialRows();
+}
+function saveEvent(id){
+  const gradeVal = document.getElementById('ef-grade').value;
+  const materials = tempEventMaterials.map(m=>({id:m.id||uid(), quantity:Number(m.quantity)||1, material:m.material||'', description:m.description||''}));
+  const data = {
+    title: document.getElementById('ef-title').value || 'Evento sin título',
+    eventTypeId: document.getElementById('ef-type').value,
+    courseId: document.getElementById('ef-course').value || null,
+    date: document.getElementById('ef-date').value || todayStr(),
+    time: document.getElementById('ef-time').value,
+    alarmMinutesBefore: document.getElementById('ef-alarm').value || null,
+    clothing: document.getElementById('ef-clothing').value,
+    materials: materials,
+    notes: document.getElementById('ef-notes').value,
+    grade: gradeVal===''? null : Number(gradeVal)
+  };
+  if(id){ Object.assign(state.events.find(e=>e.id===id), data); }
+  else{ state.events.push(Object.assign({id:uid()},data)); }
+  saveState(); closeModal(); renderAll();
+}
+function deleteEvent(id){
+  state.events = state.events.filter(e=>e.id!==id);
+  saveState(); closeModal(); renderAll();
+}
+
+/* ---------------- Programa de cumplimiento (grupal/individual, etapas, avance) ---------------- */
+function ensureEventSavedThenPlan(id){
+  if(id){ closeModal(); openPlanForm(id); return; }
+  const gradeVal = document.getElementById('ef-grade').value;
+  const materials = tempEventMaterials.map(m=>({id:m.id||uid(), quantity:Number(m.quantity)||1, material:m.material||'', description:m.description||''}));
+  const data = {
+    title: document.getElementById('ef-title').value || 'Evento sin título',
+    eventTypeId: document.getElementById('ef-type').value,
+    courseId: document.getElementById('ef-course').value || null,
+    date: document.getElementById('ef-date').value || todayStr(),
+    time: document.getElementById('ef-time').value,
+    alarmMinutesBefore: document.getElementById('ef-alarm').value || null,
+    clothing: document.getElementById('ef-clothing').value,
+    materials: materials,
+    notes: document.getElementById('ef-notes').value,
+    grade: gradeVal===''? null : Number(gradeVal),
+    plan: null
+  };
+  const newEv = Object.assign({id:uid()}, data);
+  state.events.push(newEv);
+  saveState();
+  closeModal();
+  openPlanForm(newEv.id);
+}
+let tempPlan = null;
+let planEventId = null;
+function openPlanForm(eventId){
+  planEventId = eventId;
+  const ev = state.events.find(x=>x.id===eventId);
+  if(!ev) return;
+  tempPlan = ev.plan ? JSON.parse(JSON.stringify(ev.plan)) : { mode:'individual', members:[], exposition:'no', presentadorId:null, steps:[] };
+  const course = courseById(ev.courseId);
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>Programa de cumplimiento</h2><p class="meta-line" style="margin-bottom:10px;">'+ev.title+'</p>';
+  html += '<div class="field"><label>Modalidad</label><select id="pf-mode" onchange="tempPlan.mode=this.value;renderPlanForm();"><option value="individual" '+(tempPlan.mode==='individual'?'selected':'')+'>Individual</option><option value="grupal" '+(tempPlan.mode==='grupal'?'selected':'')+'>Grupal</option></select></div>';
+  if(course && course.workGroups && course.workGroups.length){
+    html += '<div class="field"><label>Cargar grupo registrado en el curso</label><select id="pf-load-group" onchange="loadCourseWorkGroup(this.value)"><option value="">— Llenar manualmente —</option>'+course.workGroups.map(g=>'<option value="'+g.id+'">'+g.name+' ('+g.members.length+' integrantes)</option>').join('')+'</select></div>';
+  }
+  html += '<div id="pf-members-wrap"></div>';
+  html += '<div class="field"><label>Exposición</label><div id="pf-exposition-wrap"></div></div>';
+  html += '<div class="field"><label>Etapas de cumplimiento (con % de avance que aportan al total)</label><div id="pf-steps"></div>';
+  html += '<button class="btn small ghost" type="button" onclick="addPlanStep()">+ Agregar etapa</button>';
+  html += '<div class="weight-total" id="pf-weight-total"></div></div>';
+  html += '<div class="modal-actions" style="justify-content:flex-start;"><button class="btn small" type="button" onclick="exportPlanReport(planEventId, tempPlan)">🖨️ Emitir reporte PDF</button></div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar sin guardar</button><button class="btn primary" onclick="savePlan()">Guardar programa</button></div>';
+  openModal(html, true);
+  renderPlanForm();
+}
+function loadCourseWorkGroup(groupId){
+  const ev = state.events.find(x=>x.id===planEventId);
+  const course = ev ? courseById(ev.courseId) : null;
+  const group = course && course.workGroups ? course.workGroups.find(g=>g.id===groupId) : null;
+  if(!group) return;
+  tempPlan.members = JSON.parse(JSON.stringify(group.members));
+  renderPlanMembers();
+}
+function renderPlanForm(){
+  document.getElementById('pf-mode').value = tempPlan.mode;
+  const wrap = document.getElementById('pf-members-wrap');
+  if(tempPlan.mode==='grupal'){
+    wrap.innerHTML = '<div class="field"><label>Integrantes del grupo</label><div id="pf-members-list"></div>'
+      + '<button class="btn small ghost" type="button" onclick="addPlanMember()">+ Agregar integrante</button>'
+      + '<div style="margin-top:6px;display:flex;gap:6px;"><input type="text" id="pf-role-new" placeholder="Agregar otro rol" style="flex:1;padding:6px 8px;border:1.3px solid var(--line);border-radius:8px;font-size:12.5px;"><button type="button" class="btn small ghost" onclick="addPlanRoleOption()">+ Agregar rol</button></div></div>';
+    renderPlanMembers();
+  } else {
+    wrap.innerHTML = '';
+  }
+  renderExpositionField();
+  renderPlanSteps();
+}
+function renderExpositionField(){
+  const grupal = tempPlan.mode==='grupal';
+  let opts = '<option value="no" '+(tempPlan.exposition==='no'?'selected':'')+'>No se expone</option>';
+  opts += '<option value="todos" '+(tempPlan.exposition==='todos'?'selected':'')+'>'+(grupal?'Sí, exponen todos los integrantes':'Sí, expone')+'</option>';
+  opts += '<option value="uno" '+(tempPlan.exposition==='uno'?'selected':'')+'>Expone solo 1</option>';
+  let html = '<select id="pf-exposition" onchange="tempPlan.exposition=this.value;renderExpositionField();">'+opts+'</select>';
+  if(tempPlan.exposition==='uno' && grupal){
+    html += '<div style="margin-top:6px;"><select id="pf-presentador" onchange="tempPlan.presentadorId=this.value||null;">'
+      + '<option value="">— Elegir quién expone —</option>'
+      + tempPlan.members.map(m=>'<option value="'+m.id+'" '+(tempPlan.presentadorId===m.id?'selected':'')+'>'+(m.name||'Sin nombre')+'</option>').join('')
+      + '</select></div>';
+  }
+  document.getElementById('pf-exposition-wrap').innerHTML = html;
+}
+function renderPlanMembers(){
+  const list = document.getElementById('pf-members-list');
+  if(!list) return;
+  list.innerHTML = tempPlan.members.map((m,idx)=>
+    '<div class="grade-item-row"><input type="text" placeholder="Nombre" value="'+(m.name||'').replace(/"/g,'&quot;')+'" onchange="tempPlan.members['+idx+'].name=this.value;renderExpositionField();" style="flex:2;">'
+    +'<select onchange="tempPlan.members['+idx+'].role=this.value" style="flex:1.4;">'+state.roleOptions.map(r=>'<option value="'+r.replace(/"/g,'&quot;')+'" '+(m.role===r?'selected':'')+'>'+r+'</option>').join('')+'</select>'
+    +'<button class="btn small danger" type="button" onclick="removePlanMember('+idx+')">✕</button></div>'
+  ).join('') || '<p class="meta-line">Aún no agregas integrantes.</p>';
+  renderExpositionField();
+}
+function addPlanMember(){ tempPlan.members.push({id:uid(),name:'',role:state.roleOptions[0]}); renderPlanMembers(); }
+function removePlanMember(idx){ tempPlan.members.splice(idx,1); renderPlanMembers(); }
+function addPlanRoleOption(){
+  const input = document.getElementById('pf-role-new');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!state.roleOptions.includes(val)) state.roleOptions.push(val);
+  saveState();
+  input.value = '';
+  renderPlanMembers();
+}
+function renderPlanSteps(){
+  const c = document.getElementById('pf-steps');
+  c.innerHTML = tempPlan.steps.map((s,idx)=>
+    '<div class="grade-item-row" style="flex-wrap:wrap;">'
+    +'<input type="text" placeholder="Nombre de la etapa" value="'+(s.name||'').replace(/"/g,'&quot;')+'" onchange="tempPlan.steps['+idx+'].name=this.value" style="flex:2;min-width:140px;">'
+    +'<input type="date" value="'+(s.date||'')+'" onchange="tempPlan.steps['+idx+'].date=this.value" style="flex:1;min-width:120px;">'
+    +'<input type="time" value="'+(s.time||'')+'" title="Hora programada (aparece en el horario)" onchange="tempPlan.steps['+idx+'].time=this.value" style="flex:1;min-width:90px;">'
+    +'<input type="number" value="'+(s.weight||0)+'" onchange="tempPlan.steps['+idx+'].weight=Number(this.value);updatePlanWeightTotal()" style="width:60px;"> %'
+    +'<label style="font-size:12px;display:flex;align-items:center;gap:3px;"><input type="checkbox" '+(s.done?'checked':'')+' onchange="tempPlan.steps['+idx+'].done=this.checked" style="width:auto;"> Cumplido</label>'
+    +'<button class="btn small danger" type="button" onclick="removePlanStep('+idx+')">✕</button>'
+    +'<div style="flex-basis:100%;display:flex;align-items:center;gap:6px;margin-top:2px;"><label style="font-size:11.5px;color:var(--ink-soft);">Vencimiento (no aparece en el horario, solo te avisa):</label><input type="time" value="'+(s.vencimiento||'')+'" onchange="tempPlan.steps['+idx+'].vencimiento=this.value;tempPlan.steps['+idx+'].venceFlagged=false;" style="width:110px;"></div>'
+    +'</div>'
+  ).join('') || '<p class="meta-line">Aún no agregas etapas.</p>';
+  updatePlanWeightTotal();
+}
+function addPlanStep(){ tempPlan.steps.push({id:uid(),name:'',date:todayStr(),time:'',vencimiento:'',venceFlagged:false,weight:0,done:false}); renderPlanSteps(); }
+function removePlanStep(idx){ tempPlan.steps.splice(idx,1); renderPlanSteps(); }
+function updatePlanWeightTotal(){
+  const sum = tempPlan.steps.reduce((s,i)=>s+Number(i.weight||0),0);
+  const el = document.getElementById('pf-weight-total');
+  el.textContent = 'Suma de % de avance: '+sum+'%'+(sum!==100?' (debería sumar 100%)':' ✓');
+  el.className = 'weight-total '+(sum===100?'ok':'bad');
+}
+function savePlan(){
+  const ev = state.events.find(x=>x.id===planEventId);
+  if(!ev) return;
+  ev.plan = tempPlan;
+  if(tempPlan.steps.some(s=>s.vencimiento)) maybeRequestNotificationPermission();
+  saveState(); closeModal(); renderAll();
+}
+function openAgendaReportForm(){
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>Reporte de agenda en PDF</h2>';
+  html += '<p class="meta-line" style="margin-bottom:8px;">Elige qué debe aparecer en el reporte.</p>';
+  html += '<div class="field-row"><div class="field"><label>Desde</label><input type="date" id="ar-from" value="'+todayStr()+'"></div><div class="field"><label>Hasta</label><input type="date" id="ar-to" value=""></div></div>';
+  html += '<div class="field"><label><input type="checkbox" id="ar-stages" checked style="width:auto;"> Incluir etapas de cumplimiento</label></div>';
+  html += '<div class="field"><label><input type="checkbox" id="ar-hide-done" style="width:auto;"> Ocultar eventos y etapas ya cumplidos</label></div>';
+  html += '<div class="field"><label>Cursos a incluir</label><div style="margin-bottom:4px;"><button type="button" class="btn small ghost" onclick="setAllReportChecks(\'ar-course-\',true)">Marcar todos</button> <button type="button" class="btn small ghost" onclick="setAllReportChecks(\'ar-course-\',false)">Ninguno</button></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + state.courses.map(c=>'<label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="ar-course-'+c.id+'" checked style="width:auto;"> '+c.name+'</label>').join('')
+    + '<label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="ar-course-none" checked style="width:auto;"> Sin curso asignado</label></div></div>';
+  html += '<div class="field"><label>Tipos de evento a incluir</label><div style="margin-bottom:4px;"><button type="button" class="btn small ghost" onclick="setAllReportChecks(\'ar-type-\',true)">Marcar todos</button> <button type="button" class="btn small ghost" onclick="setAllReportChecks(\'ar-type-\',false)">Ninguno</button></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + state.eventTypes.map(t=>'<label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="ar-type-'+t.id+'" checked style="width:auto;"> '+t.icon+' '+t.name+'</label>').join('') + '</div></div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="generateAgendaReport()">Generar PDF</button></div>';
+  openModal(html, true);
+}
+function setAllReportChecks(prefix, val){
+  document.querySelectorAll('input[id^="'+prefix+'"]').forEach(cb=>cb.checked=val);
+}
+function generateAgendaReport(){
+  if(typeof window.jspdf === 'undefined'){ alert('No se pudo cargar el generador de PDF (revisa tu conexión a internet) e inténtalo de nuevo.'); return; }
+  const from = document.getElementById('ar-from').value;
+  const to = document.getElementById('ar-to').value;
+  const includeStages = document.getElementById('ar-stages').checked;
+  const hideDone = document.getElementById('ar-hide-done').checked;
+  const includedCourseIds = new Set(state.courses.filter(c=>document.getElementById('ar-course-'+c.id).checked).map(c=>c.id));
+  const includeNoCourse = document.getElementById('ar-course-none').checked;
+  const includedTypeIds = new Set(state.eventTypes.filter(t=>document.getElementById('ar-type-'+t.id).checked).map(t=>t.id));
+
+  let rows = [];
+  state.events.forEach(e=>{
+    if(from && e.date < from) return;
+    if(to && e.date > to) return;
+    if(e.courseId ? !includedCourseIds.has(e.courseId) : !includeNoCourse) return;
+    if(!includedTypeIds.has(e.eventTypeId)) return;
+    const done = isEventDone(e);
+    if(hideDone && done) return;
+    const course = courseById(e.courseId);
+    const t = typeById(e.eventTypeId);
+    rows.push({date:e.date, time:e.time||'', title:e.title, course:course?course.name:'—', type:t?t.name:'—', status: done?'Cumplido':(e.grade!=null?'Nota '+e.grade:'Pendiente')});
+    if(includeStages && e.plan && e.plan.steps){
+      e.plan.steps.forEach(s=>{
+        if(!s.date) return;
+        if(from && s.date < from) return;
+        if(to && s.date > to) return;
+        if(hideDone && s.done) return;
+        rows.push({date:s.date, time:s.time||'', title:'🤝 '+(s.name||'Etapa')+' (de: '+e.title+')', course:course?course.name:'—', type:'Etapa', status: s.done?'Cumplida':'Pendiente'});
+      });
+    }
+  });
+  if(rows.length===0){ alert('No hay elementos que coincidan con lo seleccionado.'); return; }
+  rows.sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16); doc.setFont(undefined,'bold');
+  doc.text('Reporte de agenda', 14, 18);
+  doc.setFontSize(10); doc.setFont(undefined,'normal');
+  doc.text('Rango: '+(from||'—')+' a '+(to||'—')+' · Emitido el '+todayStr(), 14, 25);
+
+  if(doc.autoTable){
+    doc.autoTable({
+      startY: 32,
+      head: [['Fecha','Hora','Título','Curso','Tipo','Estado']],
+      body: rows.map(r=>[r.date, r.time||'—', r.title, r.course, r.type, r.status]),
+      theme:'grid', styles:{fontSize:8.5}, headStyles:{fillColor:[27,75,67]}
+    });
+  } else {
+    let y=32;
+    rows.forEach(r=>{
+      doc.text(r.date+' '+(r.time||'')+' — '+r.title+' ('+r.course+') · '+r.status, 14, y);
+      y+=6; if(y>280){ doc.addPage(); y=18; }
+    });
+  }
+  const dataUrl = doc.output('datauristring');
+  const fileName = 'reporte-agenda-'+todayStr()+'.pdf';
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>Reporte listo</h2>';
+  html += '<p class="meta-line" style="margin-top:8px;">Tócalo para descargarlo.</p>';
+  html += '<div class="modal-actions" style="justify-content:flex-start;"><a class="btn primary" href="'+dataUrl+'" download="'+fileName+'">⬇ Descargar '+fileName+'</a></div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+  openModal(html);
+}
+function exportPlanReport(eventId, planOverride){
+  const ev = state.events.find(x=>x.id===eventId);
+  if(!ev){ alert('No se encontró el evento.'); return; }
+  const plan = planOverride || ev.plan;
+  if(!plan || !plan.steps || plan.steps.length===0){ alert('Este evento aún no tiene etapas configuradas en su programa de cumplimiento.'); return; }
+  if(typeof window.jspdf === 'undefined'){
+    alert('No se pudo cargar el generador de PDF (revisa tu conexión a internet) e inténtalo de nuevo.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const course = courseById(ev.courseId);
+  const progress = planProgressFor(plan);
+  const doneCount = plan.steps.filter(s=>s.done).length;
+  let y = 18;
+
+  doc.setFontSize(16); doc.setFont(undefined,'bold');
+  doc.text('Programa de cumplimiento', 14, y); y+=8;
+  doc.setFontSize(12); doc.setFont(undefined,'normal');
+  doc.text(ev.title, 14, y); y+=7;
+  if(course){ doc.setFontSize(10); doc.text('Curso: '+course.name, 14, y); y+=6; }
+  doc.setFontSize(10);
+  doc.text('Fecha del evento: '+(ev.date||'—')+(ev.time?' · '+ev.time:''), 14, y); y+=6;
+  doc.text('Modalidad: '+(plan.mode==='grupal'?'Grupal':'Individual'), 14, y); y+=6;
+  const expoLabel = plan.exposition==='todos' ? (plan.mode==='grupal' ? 'Sí, exponen todos los integrantes' : 'Sí, expone')
+    : plan.exposition==='uno' ? ('Expone solo 1'+((plan.members||[]).find(m=>m.id===plan.presentadorId)?(': '+(plan.members||[]).find(m=>m.id===plan.presentadorId).name):''))
+    : 'No se expone';
+  doc.text('Exposición: '+expoLabel, 14, y); y+=6;
+  doc.text('Avance general: '+progress+'% ('+doneCount+'/'+plan.steps.length+' etapas cumplidas)'+(progress>=100?' — CUMPLIDO':''), 14, y); y+=8;
+
+  if(plan.mode==='grupal' && plan.members && plan.members.length){
+    if(doc.autoTable){
+      doc.autoTable({
+        startY: y,
+        head: [['Integrante','Rol']],
+        body: plan.members.map(m=>[m.name||'—', m.role||'—']),
+        theme: 'grid', styles:{fontSize:9}, headStyles:{fillColor:[27,75,67]}
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    } else {
+      doc.setFont(undefined,'bold'); doc.text('Integrantes:', 14, y); y+=6; doc.setFont(undefined,'normal');
+      plan.members.forEach(m=>{ doc.text('- '+(m.name||'—')+' ('+(m.role||'—')+')', 16, y); y+=6; });
+      y+=4;
+    }
+  }
+
+  if(doc.autoTable){
+    doc.autoTable({
+      startY: y,
+      head: [['Etapa','Fecha','Hora','% aporte','Estado']],
+      body: plan.steps.map(s=>[s.name||'—', s.date||'—', s.time||'—', (s.weight||0)+'%', s.done?'Cumplida':'Pendiente']),
+      theme: 'grid', styles:{fontSize:9}, headStyles:{fillColor:[27,75,67]}
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  } else {
+    doc.setFont(undefined,'bold'); doc.text('Etapas:', 14, y); y+=6; doc.setFont(undefined,'normal');
+    plan.steps.forEach(s=>{
+      doc.text('- '+(s.name||'—')+' · '+(s.date||'—')+(s.time?' '+s.time:'')+' · '+(s.weight||0)+'% · '+(s.done?'Cumplida':'Pendiente'), 16, y);
+      y+=6;
+      if(y>270){ doc.addPage(); y=18; }
+    });
+    y+=4;
+  }
+
+  doc.setFontSize(8); doc.setTextColor(120);
+  doc.text('Reporte emitido el '+todayStr()+' con Emanuel — agenda académica', 14, 290);
+
+  const safeName = (ev.title||'evento').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const fileName = 'programa-cumplimiento-'+safeName+'.pdf';
+  const dataUrl = doc.output('datauristring');
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>Reporte listo</h2>';
+  html += '<p class="meta-line" style="margin-top:8px;">El reporte del programa de cumplimiento de "'+ev.title+'" ya está generado. Tócalo para descargarlo o verlo.</p>';
+  html += '<div class="modal-actions" style="justify-content:flex-start;"><a class="btn primary" href="'+dataUrl+'" download="'+fileName+'">⬇ Descargar '+fileName+'</a></div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+  openModal(html);
+}
+function planProgressFor(plan){
+  if(!plan || !plan.steps || plan.steps.length===0) return 0;
+  const done = plan.steps.filter(s=>s.done).reduce((s,st)=>s+Number(st.weight||0),0);
+  return Math.min(100, Math.round(done));
+}
+function toggleStepDone(eventId, stepId){
+  const ev = state.events.find(x=>x.id===eventId);
+  if(!ev || !ev.plan) return;
+  const st = ev.plan.steps.find(s=>s.id===stepId);
+  if(!st) return;
+  st.done = !st.done;
+  saveState(); renderAll();
+}
+function openStageQuickView(eventId, stepId){
+  const ev = state.events.find(x=>x.id===eventId);
+  if(!ev || !ev.plan) return;
+  const st = ev.plan.steps.find(s=>s.id===stepId);
+  if(!st) return;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(st.name||'Etapa')+'</h2>';
+  html += '<p class="meta-line">Para: '+ev.title+'</p>';
+  html += '<p class="meta-line">'+(st.date||'Sin fecha')+(st.time?' · '+st.time:'')+' · '+(st.weight||0)+'% del total</p>';
+  if(st.vencimiento) html += '<p class="meta-line">⏰ Vencimiento: '+st.vencimiento+'</p>';
+  html += '<p style="margin-top:12px;font-weight:700;font-size:14px;">'+(st.done?'✓ Esta etapa está marcada como cumplida.':'¿Esta etapa se cumplió?')+'</p>';
+  html += '<div class="modal-actions" style="justify-content:flex-start;">';
+  html += '<button class="btn '+(st.done?'ghost':'primary')+'" onclick="setStageDone(\''+eventId+'\',\''+stepId+'\',true)">Sí, se cumplió</button>';
+  html += '<button class="btn '+(st.done?'primary':'ghost')+'" onclick="setStageDone(\''+eventId+'\',\''+stepId+'\',false)">No, pendiente</button>';
+  html += '</div>';
+  html += '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">';
+  html += '<button class="btn small warm" type="button" onclick="document.getElementById(\'stage-reprogram-fields\').style.display=\'block\';">📅 Reprogramar etapa</button>';
+  html += '<button class="btn small warm" type="button" onclick="document.getElementById(\'stage-extend-fields\').style.display=\'block\';">⏰ Extender plazo</button>';
+  html += '</div>';
+  html += '<div id="stage-reprogram-fields" style="display:none;margin-top:8px;">';
+  html += '<p class="meta-line">Mueve el día/hora en que trabajarás esta etapa.</p>';
+  html += '<div class="field-row"><div class="field"><label>Nueva fecha</label><input type="date" id="sr-date" value="'+(st.date||'')+'"></div><div class="field"><label>Nueva hora</label><input type="time" id="sr-time" value="'+(st.time||'')+'"></div></div>';
+  html += '<button class="btn small primary" type="button" onclick="saveStageReprogram(\''+eventId+'\',\''+stepId+'\')">Guardar nueva fecha</button>';
+  html += '</div>';
+  html += '<div id="stage-extend-fields" style="display:none;margin-top:8px;">';
+  html += '<p class="meta-line">Solo cambia la hora límite de vencimiento, sin mover la fecha de trabajo de la etapa.</p>';
+  html += '<div class="field-row"><div class="field"><label>Nueva fecha límite</label><input type="date" id="se-date" value="'+(st.date||todayStr())+'"></div><div class="field"><label>Nueva hora límite</label><input type="time" id="se-time" value="'+(st.vencimiento||'')+'"></div></div>';
+  html += '<button class="btn small primary" type="button" onclick="extendStageDeadline(\''+eventId+'\',\''+stepId+'\')">Extender plazo</button>';
+  html += '</div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal();openEventForm(\''+eventId+'\')">Ver evento completo</button><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+  openModal(html);
+}
+function extendStageDeadline(eventId, stepId){
+  const ev = state.events.find(x=>x.id===eventId);
+  const st = ev.plan.steps.find(s=>s.id===stepId);
+  const newDate = document.getElementById('se-date').value;
+  const newTime = document.getElementById('se-time').value;
+  if(newDate) st.date = newDate;
+  st.vencimiento = newTime || '';
+  st.venceFlagged = false;
+  saveState(); closeModal(); renderAll();
+}
+
+/* ---------------- Vencimientos de etapas: aviso automático ---------------- */
+let deadlineQueue = [];
+function maybeRequestNotificationPermission(){
+  if(typeof Notification === 'undefined') return;
+  if(Notification.permission === 'default'){
+    Notification.requestPermission().catch(()=>{});
+  }
+}
+function scanStageDeadlines(){
+  if(!state || !state.events) return;
+  const now = new Date();
+  let changed = false;
+  state.events.forEach(ev=>{
+    if(!ev.plan || !ev.plan.steps) return;
+    ev.plan.steps.forEach(st=>{
+      if(st.done || !st.vencimiento || !st.date || st.venceFlagged) return;
+      const due = new Date(st.date+'T'+st.vencimiento+':00');
+      if(now.getTime() >= due.getTime()){
+        st.venceFlagged = true;
+        changed = true;
+        if(typeof Notification !== 'undefined' && Notification.permission==='granted'){
+          try{
+            const n = new Notification('Venció: '+(st.name||'Etapa'), {
+              body: 'Para: '+ev.title+' · ¿Se cumplió?',
+              tag: 'emanuel-vencimiento-'+st.id
+            });
+            n.onclick = ()=>{ window.focus(); openStageQuickView(ev.id, st.id); };
+          }catch(e){ /* algunos navegadores restringen Notification en iframes */ }
+        }
+        deadlineQueue.push({eventId:ev.id, stepId:st.id});
+      }
+    });
+  });
+  if(changed) saveState();
+  drainDeadlineQueue();
+}
+function drainDeadlineQueue(){
+  const modalOpen = document.getElementById('modal-root').innerHTML.trim() !== '';
+  if(modalOpen || deadlineQueue.length===0) return;
+  const next = deadlineQueue.shift();
+  const ev = state.events.find(x=>x.id===next.eventId);
+  if(!ev || !ev.plan) { drainDeadlineQueue(); return; }
+  const st = ev.plan.steps.find(s=>s.id===next.stepId);
+  if(!st || st.done) { drainDeadlineQueue(); return; }
+  openStageQuickView(next.eventId, next.stepId);
+}
+function setStageDone(eventId, stepId, val){
+  const ev = state.events.find(x=>x.id===eventId);
+  const st = ev.plan.steps.find(s=>s.id===stepId);
+  st.done = val;
+  saveState(); renderAll();
+  openStageQuickView(eventId, stepId);
+}
+function saveStageReprogram(eventId, stepId){
+  const ev = state.events.find(x=>x.id===eventId);
+  const st = ev.plan.steps.find(s=>s.id===stepId);
+  st.date = document.getElementById('sr-date').value || st.date;
+  st.time = document.getElementById('sr-time').value;
+  st.venceFlagged = false;
+  saveState(); closeModal(); renderAll();
+}
+
+function updateAgendaFilters(){
+  state.config.agendaFilters = {
+    courseId: document.getElementById('ag-filter-course').value,
+    eventTypeId: document.getElementById('ag-filter-type').value,
+    showStages: document.getElementById('ag-filter-stages').checked,
+    hideCompleted: document.getElementById('ag-filter-hide-done').checked
+  };
+  saveState(); renderAgenda();
+}
+function renderAgenda(){
+  const list = document.getElementById('agenda-list');
+  const af = state.config.agendaFilters || {courseId:'', eventTypeId:'', showStages:true, hideCompleted:false};
+
+  const courseSel = document.getElementById('ag-filter-course');
+  courseSel.innerHTML = '<option value="">Todos los cursos</option>'+state.courses.map(c=>'<option value="'+c.id+'" '+(af.courseId===c.id?'selected':'')+'>'+c.name+'</option>').join('');
+  const typeSel = document.getElementById('ag-filter-type');
+  typeSel.innerHTML = '<option value="">Todos los tipos</option>'+state.eventTypes.map(t=>'<option value="'+t.id+'" '+(af.eventTypeId===t.id?'selected':'')+'>'+t.icon+' '+t.name+'</option>').join('');
+  document.getElementById('ag-filter-stages').checked = af.showStages;
+  document.getElementById('ag-filter-hide-done').checked = af.hideCompleted;
+
+  let items = [];
+  state.events.forEach(e=>{
+    if(af.courseId && e.courseId!==af.courseId) return;
+    if(af.eventTypeId && e.eventTypeId!==af.eventTypeId) return;
+    if(!(af.hideCompleted && isEventDone(e))) items.push({date:e.date, time:e.time||'', kind:'event', event:e});
+    if(af.showStages && e.plan && e.plan.steps){
+      e.plan.steps.forEach(s=>{
+        if(!s.date) return;
+        if(af.hideCompleted && s.done) return;
+        items.push({date:s.date, time:s.time||'', kind:'step', event:e, step:s});
+      });
+    }
+  });
+  items.sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
+  if(items.length===0){ list.innerHTML = '<div class="empty">No hay eventos que coincidan con estos filtros.</div>'; return; }
+  let html=''; let lastDate=null;
+  items.forEach(it=>{
+    if(it.date!==lastDate){
+      const d = new Date(it.date+'T00:00:00');
+      html += '<div class="agenda-date-header">'+DOW_FULL[d.getDay()]+' '+d.getDate()+' de '+d.toLocaleDateString('es-ES',{month:'long'})+'</div>';
+      lastDate = it.date;
+    }
+    if(it.kind==='event'){
+      const e = it.event;
+      const t = typeById(e.eventTypeId);
+      const course = courseById(e.courseId);
+      const done = isEventDone(e);
+      html += '<div class="agenda-item" onclick="openEventForm(\''+e.id+'\')">';
+      html += '<span class="swatch" style="background:'+eventColor(e)+'"></span>';
+      html += '<div class="body"><div class="title" style="'+(done?'text-decoration:line-through;opacity:0.7;':'')+'">'+(t?t.icon+' ':'')+e.title+'</div>';
+      html += '<div class="sub">'+(course?course.name+' · ':'')+(e.time?e.time+' · ':'')+(t?t.name:'')+'</div></div>';
+      if(e.plan && e.plan.steps && e.plan.steps.length) html += '<span class="badge '+(done?'grade':'')+'">'+planProgress(e)+'%</span>';
+      if(e.grade!=null) html += '<span class="badge grade">Nota '+e.grade+'</span>';
+      html += '</div>';
+    } else {
+      const e = it.event, s = it.step;
+      const course = courseById(e.courseId);
+      html += '<div class="agenda-item" style="background:'+stageColor(e)+'22;" onclick="openEventForm(\''+e.id+'\')">';
+      html += '<span class="swatch" style="background:'+stageColor(e)+';"></span>';
+      html += '<div class="body"><div class="title" style="'+(s.done?'text-decoration:line-through;opacity:0.7;':'')+'">🤝 '+(s.name||'Etapa')+'</div>';
+      html += '<div class="sub">'+(s.time?s.time+' · ':'')+'Para: '+e.title+(course?' · '+course.name:'')+' · '+s.weight+'%</div></div>';
+      html += '<button class="btn small '+(s.done?'':'primary')+'" onclick="event.stopPropagation();toggleStepDone(\''+e.id+'\',\''+s.id+'\')">'+(s.done?'✓ Cumplido':'Marcar cumplido')+'</button>';
+      html += '</div>';
+    }
+  });
+  list.innerHTML = html;
+}
+
+/* ================= CALENDAR ================= */
+function stepsOnDate(dateStr){
+  const out=[];
+  state.events.forEach(e=>{ if(e.plan && e.plan.steps){ e.plan.steps.forEach(s=>{ if(s.date===dateStr) out.push({event:e, step:s}); }); } });
+  return out;
+}
+function calShift(n){ calCursor.setMonth(calCursor.getMonth()+n); renderCalendar(); }
+function renderCalendar(){
+  const y = calCursor.getFullYear(), m = calCursor.getMonth();
+  document.getElementById('cal-month-label').textContent = calCursor.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  const startDay = (state.config && state.config.weekStartDay!=null) ? state.config.weekStartDay : 1;
+  const dowLabels = []; for(let i=0;i<7;i++) dowLabels.push(DOW[(startDay+i)%7]);
+  document.getElementById('cal-dow-row').innerHTML = dowLabels.map(d=>'<div class="cal-dow">'+d+'</div>').join('');
+
+  const firstDay = new Date(y,m,1);
+  const startOffset = ((firstDay.getDay()-startDay)+7)%7;
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const daysInPrev = new Date(y,m,0).getDate();
+  const today = todayStr();
+
+  let cells=[];
+  for(let i=startOffset-1;i>=0;i--) cells.push({day:daysInPrev-i, other:true, dateStr:null});
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    cells.push({day:d, other:false, dateStr});
+  }
+  while(cells.length%7!==0) cells.push({day:cells.length,other:true,dateStr:null});
+
+  let html='';
+  cells.forEach(c=>{
+    const isToday = c.dateStr===today;
+    html += '<div class="cal-day '+(c.other?'other-month':'')+' '+(isToday?'today':'')+'" '+(c.dateStr?'onclick="showDayEvents(\''+c.dateStr+'\')"':'')+'>';
+    html += '<div class="num">'+c.day+'</div>';
+    if(c.dateStr){
+      const dayEvents = state.events.filter(e=>e.date===c.dateStr);
+      const daySteps = stepsOnDate(c.dateStr);
+      html += '<div class="cal-day-events">';
+      dayEvents.slice(0,3).forEach(e=>{
+        const t = typeById(e.eventTypeId);
+        const done = isEventDone(e);
+        html += '<div class="cal-evt-chip" style="background:'+eventColor(e)+';'+(done?'text-decoration:line-through;opacity:0.7;':'')+'">'+e.title+'</div>';
+      });
+      daySteps.slice(0,2).forEach(x=>{
+        html += '<div class="cal-evt-chip" style="background:'+stageColor(x.event)+';'+(x.step.done?'text-decoration:line-through;opacity:0.7;':'')+'">🤝 '+(x.step.name||'Etapa')+'</div>';
+      });
+      const extra = Math.max(0,(dayEvents.length-3)) + Math.max(0,(daySteps.length-2));
+      if(extra>0) html += '<div class="meta-line" style="font-size:9.5px;">+'+extra+' más</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  document.getElementById('cal-grid').innerHTML = html;
+}
+function showDayEvents(dateStr){
+  const dayEvents = state.events.filter(e=>e.date===dateStr);
+  const daySteps = stepsOnDate(dateStr);
+  const d = new Date(dateStr+'T00:00:00');
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+DOW_FULL[d.getDay()]+' '+d.getDate()+' de '+d.toLocaleDateString('es-ES',{month:'long'})+'</h2>';
+  if(dayEvents.length===0 && daySteps.length===0) html += '<p class="meta-line">Sin eventos este día.</p>';
+  dayEvents.forEach(e=>{
+    const t = typeById(e.eventTypeId);
+    const done = isEventDone(e);
+    html += '<div class="agenda-item" onclick="closeModal();openEventForm(\''+e.id+'\')"><span class="swatch" style="background:'+eventColor(e)+'"></span><div class="body"><div class="title" style="'+(done?'text-decoration:line-through;opacity:0.7;':'')+'">'+e.title+'</div><div class="sub">'+(e.time||'')+'</div></div>'
+      + (e.plan && e.plan.steps && e.plan.steps.length ? '<span class="badge">'+planProgress(e)+'%</span>' : '')
+      + '</div>';
+  });
+  daySteps.forEach(x=>{
+    html += '<div class="agenda-item" style="background:'+stageColor(x.event)+'22;" onclick="closeModal();openEventForm(\''+x.event.id+'\')"><span class="swatch" style="background:'+stageColor(x.event)+';"></span><div class="body"><div class="title" style="'+(x.step.done?'text-decoration:line-through;opacity:0.7;':'')+'">🤝 '+(x.step.name||'Etapa')+'</div><div class="sub">'+(x.step.time?x.step.time+' · ':'')+'Para: '+x.event.title+'</div></div>'
+      + '<button class="btn small" onclick="event.stopPropagation();toggleStepDone(\''+x.event.id+'\',\''+x.step.id+'\');closeModal();showDayEvents(\''+dateStr+'\');">'+(x.step.done?'✓':'Marcar')+'</button></div>';
+  });
+  html += '<div class="modal-actions"><button class="btn primary" onclick="closeModal();openEventForm(null,{date:\''+dateStr+'\'});">+ Evento este día</button></div>';
+  openModal(html);
+}
+
+/* ================= COURSES ================= */
+function renderCourses(){
+  const grid = document.getElementById('courses-grid');
+  if(state.courses.length===0){ grid.innerHTML='<div class="empty">Aún no creas cursos. Usa “+ Nuevo curso”.</div>'; return; }
+  grid.innerHTML = state.courses.map(c=>{
+    const prof = profById(c.professorId);
+    const carrera = state.carreras.find(x=>x.id===c.carreraId);
+    const silaboFile = state.files.find(f=>f.kind==='silabo' && f.courseId===c.id);
+    const weightSum = c.gradeItems.reduce((s,i)=>s+Number(i.weight||0),0);
+    return '<div class="entity-card">'
+      + '<h3><span class="color-tag" style="background:'+c.color+'"></span>'+c.name+'</h3>'
+      + (carrera?'<div class="meta-line">'+carrera.nombre+(c.ciclo?' · Ciclo '+c.ciclo:'')+'</div>':(c.ciclo?'<div class="meta-line">Ciclo '+c.ciclo+'</div>':''))
+      + (prof?'<div class="meta-line">Prof. '+prof.name+'</div>':'')
+      + (c.classroom?'<div class="meta-line">Aula: '+c.classroom+'</div>':'')
+      + (c.link?'<div class="meta-line"><a href="'+c.link+'" target="_blank">Enlace</a></div>':'')
+      + (c.delegado&&c.delegado.name?'<div class="meta-line">Delegado(a): '+c.delegado.name+'</div>':'')
+      + '<div class="meta-line">'+c.gradeItems.length+' ítems de nota · peso total '+weightSum+'%</div>'
+      + (c.workGroups&&c.workGroups.length?'<div class="meta-line">'+c.workGroups.length+' grupo(s) de trabajo</div>':'')
+      + '<div class="actions"><button class="btn small" onclick="openCourseForm(\''+c.id+'\')">Editar</button>'
+      + (silaboFile&&(silaboFile.hasData||silaboFile.dataUrl)?'<button class="btn small" onclick="viewCourseSilabo(\''+c.id+'\')">📘 Sílabo</button>':'')
+      + '<button class="btn small danger" onclick="deleteCourse(\''+c.id+'\')">Eliminar</button></div>'
+      + '</div>';
+  }).join('');
+}
+let tempGradeItems = [];
+let tempCourseCiclo = null;
+let tempWorkGroups = [];
+function openCourseForm(id){
+  const c = id ? courseById(id) : null;
+  tempCourseCiclo = c ? c.ciclo : null;
+  tempWorkGroups = c && Array.isArray(c.workGroups) ? JSON.parse(JSON.stringify(c.workGroups)) : [];
+  tempGradeItems = c ? JSON.parse(JSON.stringify(c.gradeItems)) : [
+    {id:uid(),name:'Examen parcial',weight:20},
+    {id:uid(),name:'Examen final',weight:30},
+    {id:uid(),name:'Prácticas',weight:25},
+    {id:uid(),name:'Informes',weight:25},
+  ];
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(c?'Editar curso':'Nuevo curso')+'</h2>';
+  html += '<div class="field"><label>Nombre del curso</label><input type="text" id="cf-name" value="'+(c?c.name.replace(/"/g,'&quot;'):'')+'" placeholder="Ej. Cálculo II"></div>';
+  html += '<div class="field-row"><div class="field"><label>Profesor</label><select id="cf-prof" onchange="toggleNewProfFields(this.value)"><option value="">— Sin asignar —</option>'+state.professors.map(p=>'<option value="'+p.id+'" '+(c&&c.professorId===p.id?'selected':'')+'>'+p.name+'</option>').join('')+'<option value="__new__">+ Nuevo profesor…</option></select></div></div>';
+  html += '<div class="field" id="cf-new-prof-fields" style="display:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;">'
+    + '<div class="field-row"><div class="field"><label>Nombre del profesor</label><input type="text" id="cf-np-name"></div><div class="field"><label>Teléfono</label><input type="tel" id="cf-np-phone"></div></div>'
+    + '<div class="field-row"><div class="field"><label>Email</label><input type="email" id="cf-np-email"></div><div class="field"><label>Horario de atención</label><input type="text" id="cf-np-hours"></div></div>'
+    + '</div>';
+  html += '<div class="field-row"><div class="field"><label>Carrera / programa</label><select id="cf-carrera" onchange="updateCicloField()"><option value="">— Ninguna —</option>'+state.carreras.map(ca=>'<option value="'+ca.id+'" '+(c&&c.carreraId===ca.id?'selected':'')+'>'+ca.nombre+'</option>').join('')+'</select></div>';
+  html += '<div class="field" id="cf-ciclo-wrap"></div></div>';
+  html += '<div class="field"><label>Aula</label><input type="text" id="cf-classroom" value="'+(c?c.classroom||'':'')+'"></div>';
+  html += '<div class="field-row"><div class="field"><label>Enlace (clases virtuales)</label><input type="text" id="cf-link" value="'+(c?c.link||'':'')+'" placeholder="https://..."></div>';
+  html += '<div class="field"><label>Créditos (para ponderado)</label><input type="number" id="cf-credits" value="'+(c?c.credits||1:1)+'"></div></div>';
+  html += '<div class="field"><label>Color</label><div class="swatch-row" id="cf-color-row">'+PALETTE.map(col=>'<span class="swatch-opt '+((c?c.color:PALETTE[state.courses.length%PALETTE.length])===col?'selected':'')+'" style="background:'+col+'" onclick="pickColor(this,\''+col+'\')"></span>').join('')+'</div><input type="hidden" id="cf-color" value="'+(c?c.color:PALETTE[state.courses.length%PALETTE.length])+'"></div>';
+  html += '<div class="field"><label>Sistema de calificación (ítems y pesos %)</label><div id="cf-grade-items"></div>';
+  html += '<button class="btn small ghost" type="button" onclick="addGradeItemRow()">+ Agregar ítem</button>';
+  html += '<div class="weight-total" id="cf-weight-total"></div></div>';
+
+  html += '<div class="field" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;">';
+  html += '<label>Delegado(a) del curso</label>';
+  html += '<input type="text" id="cf-del-name" value="'+(c&&c.delegado?(c.delegado.name||'').replace(/"/g,'&quot;'):'')+'" placeholder="Nombre" style="margin-bottom:6px;">';
+  html += '<div class="field-row"><input type="tel" id="cf-del-phone" value="'+(c&&c.delegado?(c.delegado.phone||'').replace(/"/g,'&quot;'):'')+'" placeholder="Teléfono"><input type="email" id="cf-del-email" value="'+(c&&c.delegado?(c.delegado.email||'').replace(/"/g,'&quot;'):'')+'" placeholder="Email"></div>';
+  html += '</div>';
+
+  html += '<div class="field"><label>Sílabo / programación del curso</label><div id="cf-silabo-status"></div>';
+  if(c){
+    html += '<div style="display:flex;gap:6px;margin-top:6px;"><button type="button" class="btn small" onclick="closeModal();openFileUpload(\''+c.id+'\',\'silabo\')">📘 Subir sílabo</button><button type="button" class="btn small" id="cf-silabo-view-btn" style="display:none;" onclick="viewCourseSilabo(\''+c.id+'\')">👁 Ver sílabo</button></div>';
+  } else {
+    html += '<p class="meta-line">Guarda el curso primero para poder subir su sílabo o programación.</p>';
+  }
+  html += '</div>';
+
+  html += '<div class="field"><label>Grupos de trabajo (para el programa de cumplimiento)</label><div id="cf-workgroups"></div>';
+  html += '<button class="btn small ghost" type="button" onclick="addWorkGroup()">+ Agregar grupo</button></div>';
+
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveCourse('+(c?"'"+c.id+"'":'null')+')">Guardar</button></div>';
+  openModal(html);
+  renderGradeItemRows();
+  updateCicloField();
+  renderWorkGroups();
+  if(c){
+    const silaboFile = state.files.find(f=>f.kind==='silabo' && f.courseId===c.id);
+    const statusEl = document.getElementById('cf-silabo-status');
+    if(silaboFile){
+      statusEl.textContent = 'Archivo actual: '+silaboFile.name;
+      const btn = document.getElementById('cf-silabo-view-btn');
+      if(btn) btn.style.display = (silaboFile.hasData||silaboFile.dataUrl) ? 'inline-block' : 'none';
+    } else {
+      statusEl.textContent = 'Aún no se sube un sílabo para este curso.';
+    }
+  }
+}
+function viewCourseSilabo(courseId){
+  const f = state.files.find(x=>x.kind==='silabo' && x.courseId===courseId);
+  if(f) viewFile(f.id);
+}
+function renderWorkGroups(){
+  const c = document.getElementById('cf-workgroups');
+  c.innerHTML = tempWorkGroups.map((g,gi)=>
+    '<div class="card" style="margin-bottom:8px;">'
+    + '<div class="field-row"><input type="text" placeholder="Nombre del grupo" value="'+(g.name||'').replace(/"/g,'&quot;')+'" onchange="tempWorkGroups['+gi+'].name=this.value" style="flex:1;">'
+    + '<button class="btn small danger" type="button" onclick="removeWorkGroup('+gi+')">Quitar grupo</button></div>'
+    + g.members.map((m,mi)=>
+        '<div class="grade-item-row"><input type="text" placeholder="Nombre" value="'+(m.name||'').replace(/"/g,'&quot;')+'" onchange="tempWorkGroups['+gi+'].members['+mi+'].name=this.value" style="flex:2;">'
+        +'<select onchange="tempWorkGroups['+gi+'].members['+mi+'].role=this.value" style="flex:1.4;">'+state.roleOptions.map(r=>'<option value="'+r.replace(/"/g,'&quot;')+'" '+(m.role===r?'selected':'')+'>'+r+'</option>').join('')+'</select>'
+        +'<button class="btn small danger" type="button" onclick="removeWorkGroupMember('+gi+','+mi+')">✕</button></div>'
+      ).join('')
+    + '<button class="btn small ghost" type="button" onclick="addWorkGroupMember('+gi+')">+ Agregar integrante</button>'
+    + '</div>'
+  ).join('') || '<p class="meta-line">Aún no registras grupos de trabajo para este curso.</p>';
+}
+function addWorkGroup(){ tempWorkGroups.push({id:uid(), name:'Grupo '+(tempWorkGroups.length+1), members:[]}); renderWorkGroups(); }
+function removeWorkGroup(gi){ tempWorkGroups.splice(gi,1); renderWorkGroups(); }
+function addWorkGroupMember(gi){ tempWorkGroups[gi].members.push({id:uid(), name:'', role: state.roleOptions[0]||''}); renderWorkGroups(); }
+function removeWorkGroupMember(gi,mi){ tempWorkGroups[gi].members.splice(mi,1); renderWorkGroups(); }
+function updateCicloField(){
+  const carreraId = document.getElementById('cf-carrera').value;
+  const carrera = state.carreras.find(c=>c.id===carreraId);
+  const wrap = document.getElementById('cf-ciclo-wrap');
+  if(carrera){
+    let opts = '<option value="">— Sin ciclo —</option>';
+    for(let i=1;i<=carrera.numeroCiclos;i++) opts += '<option value="'+i+'" '+(tempCourseCiclo===i?'selected':'')+'>Ciclo '+i+'</option>';
+    wrap.innerHTML = '<label>Ciclo (de '+carrera.numeroCiclos+')</label><select id="cf-ciclo">'+opts+'</select>';
+  } else {
+    wrap.innerHTML = '<label>Ciclo de estudios</label><input type="number" id="cf-ciclo" min="1" max="30" value="'+(tempCourseCiclo?tempCourseCiclo:'')+'" placeholder="Ej. 5">';
+  }
+}
+function pickColor(el,col){
+  document.querySelectorAll('#cf-color-row .swatch-opt').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('cf-color').value = col;
+}
+function toggleNewProfFields(val){
+  document.getElementById('cf-new-prof-fields').style.display = (val==='__new__') ? 'block' : 'none';
+}
+function renderGradeItemRows(){
+  const c = document.getElementById('cf-grade-items');
+  c.innerHTML = tempGradeItems.map((it,idx)=>
+    '<div class="grade-item-row"><input type="text" value="'+it.name.replace(/"/g,'&quot;')+'" onchange="tempGradeItems['+idx+'].name=this.value">'
+    +'<input type="number" value="'+it.weight+'" onchange="tempGradeItems['+idx+'].weight=Number(this.value);updateWeightTotal()"> %'
+    +'<button class="btn small danger" type="button" onclick="removeGradeItemRow('+idx+')">✕</button></div>'
+  ).join('');
+  updateWeightTotal();
+}
+function addGradeItemRow(){ tempGradeItems.push({id:uid(),name:'Nuevo ítem',weight:0}); renderGradeItemRows(); }
+function removeGradeItemRow(i){ tempGradeItems.splice(i,1); renderGradeItemRows(); }
+function updateWeightTotal(){
+  const sum = tempGradeItems.reduce((s,i)=>s+Number(i.weight||0),0);
+  const el = document.getElementById('cf-weight-total');
+  el.textContent = 'Suma de pesos: '+sum+'%'+(sum!==100?' (debería sumar 100%)':' ✓');
+  el.className = 'weight-total '+(sum===100?'ok':'bad');
+}
+function saveCourse(id){
+  let profId = document.getElementById('cf-prof').value;
+  if(profId === '__new__'){
+    const npName = document.getElementById('cf-np-name').value.trim();
+    if(npName){
+      const newProf = {id:uid(), name:npName, phone:document.getElementById('cf-np-phone').value, email:document.getElementById('cf-np-email').value, officeHours:document.getElementById('cf-np-hours').value};
+      state.professors.push(newProf);
+      profId = newProf.id;
+    } else { profId = null; }
+  }
+  const data = {
+    name: document.getElementById('cf-name').value || 'Curso sin nombre',
+    professorId: profId || null,
+    carreraId: document.getElementById('cf-carrera').value || null,
+    ciclo: document.getElementById('cf-ciclo').value ? Number(document.getElementById('cf-ciclo').value) : null,
+    classroom: document.getElementById('cf-classroom').value,
+    link: document.getElementById('cf-link').value,
+    credits: Number(document.getElementById('cf-credits').value)||1,
+    color: document.getElementById('cf-color').value,
+    delegado: {
+      name: document.getElementById('cf-del-name').value,
+      phone: document.getElementById('cf-del-phone').value,
+      email: document.getElementById('cf-del-email').value
+    },
+    workGroups: tempWorkGroups,
+    gradeItems: tempGradeItems.map(it=>({id:it.id,name:it.name,weight:Number(it.weight)||0,score:it.score!=null?it.score:null}))
+  };
+  if(id){ Object.assign(courseById(id), data); }
+  else{ state.courses.push(Object.assign({id:uid()},data)); }
+  saveState(); closeModal(); renderAll();
+}
+function deleteCourse(id){
+  if(!confirm('¿Eliminar este curso? También se quitará del horario.')) return;
+  state.courses = state.courses.filter(c=>c.id!==id);
+  state.scheduleBlocks = state.scheduleBlocks.filter(b=>b.courseId!==id);
+  saveState(); renderAll();
+}
+
+/* ================= CARRERA (programa de estudios) ================= */
+function renderCarreras(){
+  const grid = document.getElementById('carreras-grid');
+  if(state.carreras.length===0){ grid.innerHTML='<div class="empty">Aún no registras una carrera o programa de formación.</div>'; return; }
+  grid.innerHTML = state.carreras.map(c=>{
+    const coursesCount = state.courses.filter(co=>co.carreraId===c.id).length;
+    return '<div class="entity-card"><h3>'+c.nombre+'</h3>'
+      + '<div class="meta-line">'+(c.autodidacta? 'Autodidacta' : (c.centroEstudios||'Sin centro de estudios'))+'</div>'
+      + '<div class="meta-line">Tipo: '+c.tipoFormacion+'</div>'
+      + '<div class="meta-line">'+c.numeroCiclos+' ciclos · '+(c.duracionCiclo||'duración no definida')+' cada uno</div>'
+      + '<div class="meta-line">'+coursesCount+' curso(s) vinculado(s)</div>'
+      + '<div class="actions"><button class="btn small" onclick="openCarreraForm(\''+c.id+'\')">Editar</button><button class="btn small danger" onclick="deleteCarrera(\''+c.id+'\')">Eliminar</button></div>'
+      + '</div>';
+  }).join('');
+}
+function openCarreraForm(id){
+  const c = id ? state.carreras.find(x=>x.id===id) : null;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button>';
+  html += '<h2>'+(c?'Editar carrera':'Nueva carrera')+'</h2>';
+  html += '<div class="field"><label>Nombre de la carrera / programa</label><input type="text" id="ca-nombre" value="'+(c?c.nombre.replace(/"/g,'&quot;'):'')+'" placeholder="Ej. Ingeniería de Sistemas"></div>';
+  html += '<div class="field"><label><input type="checkbox" id="ca-autodidacta" '+(c&&c.autodidacta?'checked':'')+' style="width:auto;" onchange="document.getElementById(\'ca-centro-wrap\').style.display=this.checked?\'none\':\'block\';"> Es autodidacta (sin centro de estudios)</label></div>';
+  html += '<div class="field" id="ca-centro-wrap" style="'+(c&&c.autodidacta?'display:none;':'')+'"><label>Centro de estudios</label><input type="text" id="ca-centro" value="'+(c?(c.centroEstudios||'').replace(/"/g,'&quot;'):'')+'" placeholder="Ej. Universidad Nacional"></div>';
+  html += '<div class="field"><label>Tipo de formación</label><select id="ca-tipo">'+state.tipoFormacionOptions.map(t=>'<option value="'+t.replace(/"/g,'&quot;')+'" '+(c&&c.tipoFormacion===t?'selected':'')+'>'+t+'</option>').join('')+'</select>'
+    + '<div style="margin-top:6px;display:flex;gap:6px;"><input type="text" id="ca-tipo-new" placeholder="Agregar otro tipo" style="flex:1;padding:6px 8px;border:1.3px solid var(--line);border-radius:8px;font-size:12.5px;"><button type="button" class="btn small ghost" onclick="addTipoFormacionOption()">+ Agregar</button></div></div>';
+  html += '<div class="field-row"><div class="field"><label>Número de ciclos</label><input type="number" id="ca-numciclos" min="1" value="'+(c?c.numeroCiclos:10)+'"></div>';
+  html += '<div class="field"><label>Duración de cada ciclo</label><input type="text" id="ca-duracion" value="'+(c?(c.duracionCiclo||'').replace(/"/g,'&quot;'):'')+'" placeholder="Ej. 4 meses, 1 semestre"></div></div>';
+  html += '<div class="modal-actions">';
+  if(c) html += '<button class="btn danger" onclick="deleteCarrera(\''+c.id+'\')">Eliminar</button>';
+  html += '<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveCarrera('+(c?"'"+c.id+"'":'null')+')">Guardar</button></div>';
+  openModal(html);
+}
+function addTipoFormacionOption(){
+  const input = document.getElementById('ca-tipo-new');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!state.tipoFormacionOptions.includes(val)) state.tipoFormacionOptions.push(val);
+  saveState();
+  const sel = document.getElementById('ca-tipo');
+  sel.innerHTML = state.tipoFormacionOptions.map(t=>'<option value="'+t.replace(/"/g,'&quot;')+'">'+t+'</option>').join('');
+  sel.value = val;
+  input.value = '';
+}
+function saveCarrera(id){
+  const data = {
+    nombre: document.getElementById('ca-nombre').value || 'Carrera sin nombre',
+    autodidacta: document.getElementById('ca-autodidacta').checked,
+    centroEstudios: document.getElementById('ca-centro').value,
+    tipoFormacion: document.getElementById('ca-tipo').value,
+    numeroCiclos: Number(document.getElementById('ca-numciclos').value)||1,
+    duracionCiclo: document.getElementById('ca-duracion').value
+  };
+  if(id){ Object.assign(state.carreras.find(c=>c.id===id), data); }
+  else{ state.carreras.push(Object.assign({id:uid()},data)); }
+  saveState(); closeModal(); renderAll();
+}
+function deleteCarrera(id){
+  if(!confirm('¿Eliminar esta carrera? Los cursos vinculados a ella dejarán de tener carrera asignada.')) return;
+  state.carreras = state.carreras.filter(c=>c.id!==id);
+  state.courses.forEach(co=>{ if(co.carreraId===id) co.carreraId=null; });
+  saveState(); closeModal(); renderAll();
+}
+
+/* ================= PROFESSORS ================= */
+function renderProfessors(){
+  const grid = document.getElementById('professors-grid');
+  if(state.professors.length===0){ grid.innerHTML = '<div class="empty">Aún no agregas profesores.</div>'; return; }
+  grid.innerHTML = state.professors.map(p=>
+    '<div class="entity-card"><h3>'+p.name+'</h3>'
+    +(p.email?'<div class="meta-line">'+p.email+'</div>':'')
+    +(p.phone?'<div class="meta-line">'+p.phone+'</div>':'')
+    +(p.officeHours?'<div class="meta-line">Atención: '+p.officeHours+'</div>':'')
+    +'<div class="actions"><button class="btn small" onclick="openProfessorForm(\''+p.id+'\')">Editar</button><button class="btn small danger" onclick="deleteProfessor(\''+p.id+'\')">Eliminar</button></div></div>'
+  ).join('');
+}
+function openProfessorForm(id){
+  const p = id ? profById(id) : null;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>'+(p?'Editar profesor':'Nuevo profesor')+'</h2>';
+  html += '<div class="field"><label>Nombre</label><input type="text" id="pf-name" value="'+(p?p.name.replace(/"/g,'&quot;'):'')+'"></div>';
+  html += '<div class="field-row"><div class="field"><label>Teléfono</label><input type="tel" id="pf-phone" value="'+(p?p.phone||'':'')+'"></div><div class="field"><label>Email</label><input type="email" id="pf-email" value="'+(p?p.email||'':'')+'"></div></div>';
+  html += '<div class="field"><label>Horario de atención</label><input type="text" id="pf-hours" value="'+(p?p.officeHours||'':'')+'" placeholder="Ej. Martes 3–5pm, oficina 12"></div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveProfessor('+(p?"'"+p.id+"'":'null')+')">Guardar</button></div>';
+  openModal(html);
+}
+function saveProfessor(id){
+  const data = {name:document.getElementById('pf-name').value||'Sin nombre', phone:document.getElementById('pf-phone').value, email:document.getElementById('pf-email').value, officeHours:document.getElementById('pf-hours').value};
+  if(id){ Object.assign(profById(id),data); } else { state.professors.push(Object.assign({id:uid()},data)); }
+  saveState(); closeModal(); renderAll();
+}
+function deleteProfessor(id){
+  state.professors = state.professors.filter(p=>p.id!==id);
+  saveState(); renderAll();
+}
+
+/* ================= GRADES ================= */
+let gradesUi = { ciclosCollapsed:{}, coursesCollapsed:{} };
+function computeGradeGroups(){
+  const groups = {};
+  state.courses.forEach(c=>{
+    const carrera = state.carreras.find(x=>x.id===c.carreraId);
+    let key;
+    if(carrera && c.ciclo) key = carrera.nombre+' · Ciclo '+c.ciclo;
+    else if(carrera) key = carrera.nombre+' · Sin ciclo asignado';
+    else if(c.ciclo) key = 'Ciclo '+c.ciclo;
+    else key = 'Sin ciclo asignado';
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(c);
+  });
+  const groupKeys = Object.keys(groups).sort((a,b)=>{
+    const aNone = a.includes('Sin ciclo asignado'), bNone = b.includes('Sin ciclo asignado');
+    if(aNone!==bNone) return aNone?1:-1;
+    return a.localeCompare(b, undefined, {numeric:true});
+  });
+  return {groups, groupKeys};
+}
+function toggleAllCourseItems(){
+  const anyExpanded = state.courses.some(c=>!gradesUi.coursesCollapsed[c.id]);
+  state.courses.forEach(c=>{ gradesUi.coursesCollapsed[c.id] = anyExpanded; });
+  renderGrades();
+}
+function toggleAllCiclos(){
+  const {groupKeys} = computeGradeGroups();
+  const anyExpanded = groupKeys.some(k=>!gradesUi.ciclosCollapsed[k]);
+  groupKeys.forEach(k=>{ gradesUi.ciclosCollapsed[k] = anyExpanded; });
+  renderGrades();
+}
+function toggleCicloCollapsed(key){ gradesUi.ciclosCollapsed[key] = !gradesUi.ciclosCollapsed[key]; renderGrades(); }
+function toggleCourseCollapsed(id){ gradesUi.coursesCollapsed[id] = !gradesUi.coursesCollapsed[id]; renderGrades(); }
+
+function renderGrades(){
+  document.getElementById('scale-max-lbl').textContent = state.config.scaleMax;
+  document.getElementById('scale-min-lbl').textContent = state.config.scaleMin;
+  const container = document.getElementById('grades-container');
+  if(state.courses.length===0){ container.innerHTML='<div class="empty">Crea cursos para ver sus calificaciones.</div>'; document.getElementById('ponderado-total').textContent='—'; return; }
+
+  const {groups, groupKeys} = computeGradeGroups();
+
+  let grandWeighted=0, grandCredits=0;
+  let html='';
+  groupKeys.forEach(key=>{
+    const cicloCollapsed = !!gradesUi.ciclosCollapsed[key];
+    let groupWeighted=0, groupCredits=0;
+    // compute group ponderado regardless of collapsed state, so the summary line is always accurate
+    groups[key].forEach(c=>{
+      const weightSum = c.gradeItems.reduce((s,i)=>s+Number(i.weight||0),0)||1;
+      let earned = 0;
+      c.gradeItems.forEach(it=>{ if(it.score!=null){ earned += Number(it.score)*Number(it.weight)/100; } });
+      const finalGrade = weightSum? (earned*100/weightSum) : 0;
+      const hasAny = c.gradeItems.some(it=>it.score!=null);
+      if(hasAny){ groupWeighted += finalGrade*c.credits; groupCredits += c.credits; }
+    });
+    if(groupCredits){ grandWeighted += groupWeighted; grandCredits += groupCredits; }
+    const groupPonderadoTxt = groupCredits ? (groupWeighted/groupCredits).toFixed(2) : '—';
+
+    html += '<div class="card" style="cursor:pointer;margin-top:14px;margin-bottom:'+(cicloCollapsed?'8px':'2px')+';" onclick="toggleCicloCollapsed(\''+key.replace(/'/g,"\\'")+'\')">'
+      + '<div class="row-between" style="margin-bottom:0;"><h3 style="font-size:14px;">'+(cicloCollapsed?'📁 ▸':'📂 ▾')+' '+key+' <span class="meta-line" style="font-weight:400;">('+groups[key].length+' curso'+(groups[key].length===1?'':'s')+')</span></h3>'
+      + '<b>Ponderado: '+groupPonderadoTxt+'</b></div></div>';
+
+    if(!cicloCollapsed){
+      groups[key].forEach(c=>{
+        const weightSum = c.gradeItems.reduce((s,i)=>s+Number(i.weight||0),0)||1;
+        let earned = 0;
+        c.gradeItems.forEach(it=>{ if(it.score!=null){ earned += Number(it.score)*Number(it.weight)/100; } });
+        const finalGrade = weightSum? (earned*100/weightSum) : 0;
+        const hasAny = c.gradeItems.some(it=>it.score!=null);
+        const courseCollapsed = !!gradesUi.coursesCollapsed[c.id];
+
+        html += '<div class="course-grade-block">'
+          + '<div class="row-between" style="margin-bottom:0;cursor:pointer;" onclick="toggleCourseCollapsed(\''+c.id+'\')"><h3><span style="display:inline-block;width:14px;">'+(courseCollapsed?'▸':'▾')+'</span><span class="color-tag" style="background:'+c.color+'"></span>'+c.name+'</h3>'
+          + '<div class="final-grade '+(finalGrade>=state.config.scaleMin?'pass':'fail')+'">'+(hasAny?finalGrade.toFixed(2):'—')+'</div></div>';
+        if(!courseCollapsed){
+          html += '<table class="grade-table"><tr><th>Ítem</th><th>Peso</th><th>Nota (0–'+state.config.scaleMax+')</th></tr>';
+          c.gradeItems.forEach(it=>{
+            html += '<tr><td>'+it.name+'</td><td>'+it.weight+'%</td><td><input type="number" step="0.1" min="0" max="'+state.config.scaleMax+'" value="'+(it.score!=null?it.score:'')+'" onclick="event.stopPropagation()" onchange="updateItemScore(\''+c.id+'\',\''+it.id+'\',this.value)"></td></tr>';
+          });
+          html += '</table>';
+        }
+        html += '</div>';
+      });
+    }
+  });
+  container.innerHTML = html;
+  document.getElementById('ponderado-total').textContent = grandCredits ? (grandWeighted/grandCredits).toFixed(2) : '—';
+}
+function updateItemScore(courseId,itemId,val){
+  const c = courseById(courseId); const it = c.gradeItems.find(i=>i.id===itemId);
+  it.score = val===''? null : Number(val);
+  saveState(); renderGrades();
+}
+
+/* ================= EVENT TYPES (Ajustes) ================= */
+function renderEventTypes(){
+  document.getElementById('event-types-list').innerHTML = state.eventTypes.map(t=>
+    '<div class="file-row"><span class="icon">'+t.icon+'</span><div class="info"><b><span class="color-tag" style="background:'+t.color+'"></span>'+t.name+'</b><div class="sub">'+(t.hasGrade?'Admite nota':'Sin nota')+'</div></div>'
+    +'<button class="btn small" onclick="openEventTypeForm(\''+t.id+'\')">Editar</button>'
+    +'<button class="btn small danger" onclick="deleteEventType(\''+t.id+'\')">✕</button></div>'
+  ).join('');
+}
+function openEventTypeForm(id){
+  const t = id ? typeById(id) : null;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>'+(t?'Editar tipo':'Nuevo tipo de evento')+'</h2>';
+  html += '<div class="field-row"><div class="field"><label>Ícono (emoji)</label><input type="text" id="tf-icon" value="'+(t?t.icon:'📌')+'" maxlength="2"></div><div class="field"><label>Nombre</label><input type="text" id="tf-name" value="'+(t?t.name.replace(/"/g,'&quot;'):'')+'"></div></div>';
+  html += '<div class="field"><label>Color</label><div class="swatch-row">'+PALETTE.map(col=>'<span class="swatch-opt '+((t?t.color:PALETTE[0])===col?'selected':'')+'" style="background:'+col+'" onclick="pickTypeColor(this,\''+col+'\')"></span>').join('')+'</div><input type="hidden" id="tf-color" value="'+(t?t.color:PALETTE[0])+'"></div>';
+  html += '<div class="field"><label><input type="checkbox" id="tf-grade" '+(t&&t.hasGrade?'checked':'')+' style="width:auto;"> Este tipo de evento admite registrar una nota</label></div>';
+  html += '<div class="modal-actions">'+(t?'<button class="btn danger" onclick="deleteEventType(\''+t.id+'\')">Eliminar</button>':'')+'<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveEventType('+(t?"'"+t.id+"'":'null')+')">Guardar</button></div>';
+  openModal(html);
+}
+function pickTypeColor(el,col){ document.querySelectorAll('.swatch-opt').forEach(s=>s.classList.remove('selected')); el.classList.add('selected'); document.getElementById('tf-color').value=col; }
+function saveEventType(id){
+  const data = {name:document.getElementById('tf-name').value||'Sin nombre', icon:document.getElementById('tf-icon').value||'📌', color:document.getElementById('tf-color').value, hasGrade:document.getElementById('tf-grade').checked};
+  if(id){ Object.assign(typeById(id),data); } else { state.eventTypes.push(Object.assign({id:uid()},data)); }
+  saveState(); closeModal(); renderAll();
+}
+function deleteEventType(id){
+  state.eventTypes = state.eventTypes.filter(t=>t.id!==id);
+  saveState(); closeModal(); renderAll();
+}
+
+/* ================= FILES / RECORDINGS ================= */
+function fileRowHtml(f){
+  const course = courseById(f.courseId);
+  const icons = {grabacion:'🎙️',apuntes:'📝',documento:'📄',separata:'📚',fuente:'🔗',silabo:'📘'};
+  const viewable = f.hasData || f.dataUrl || f.syncUrl;
+  return '<div class="file-row"><span class="icon">'+(icons[f.kind]||'📎')+'</span><div class="info"><b>'+f.name+'</b><div class="sub">'+(course?course.name+' · ':'')+f.date+(f.note?' · '+f.note:'')+(f.syncUrl&&!f.hasData?' · en la nube':'')+'</div></div>'
+    + (viewable ? '<button class="btn small" onclick="viewFile(\''+f.id+'\')">'+(f.kind==='grabacion'?'▶ Reproducir':'👁 Ver')+'</button>' : '<span class="meta-line">Sin contenido guardado</span>')
+    + '<button class="btn small danger" onclick="deleteFile(\''+f.id+'\')">✕</button></div>';
+}
+function dataURLToBytes(dataUrl){
+  const base64 = dataUrl.split(',')[1];
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+let currentPdfDoc=null, currentPdfPage=1;
+function renderPdfPage(num){
+  currentPdfDoc.getPage(num).then(page=>{
+    const scale = Math.min(1.6, (760)/page.getViewport({scale:1}).width);
+    const viewport = page.getViewport({scale});
+    const canvas = document.getElementById('pdf-canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    page.render({canvasContext:ctx, viewport:viewport});
+    document.getElementById('pdf-page-label').textContent = num+' / '+currentPdfDoc.numPages;
+  });
+}
+function pdfPrev(){ if(currentPdfPage>1){ currentPdfPage--; renderPdfPage(currentPdfPage); } }
+function pdfNext(){ if(currentPdfDoc && currentPdfPage<currentPdfDoc.numPages){ currentPdfPage++; renderPdfPage(currentPdfPage); } }
+async function viewFile(id){
+  const f = state.files.find(x=>x.id===id);
+  if(!f || !(f.hasData || f.dataUrl || f.syncUrl)) return;
+  openModal('<button class="modal-close" onclick="closeModal()">✕</button><h2>'+f.name+'</h2><p class="meta-line">Cargando…</p>');
+  let dataUrl = f.dataUrl || await storageGetSafe('filedata:'+f.id);
+  if(!dataUrl && f.syncUrl) dataUrl = await fetchFileFromCloud(f.syncUrl);
+  if(!dataUrl){
+    openModal('<button class="modal-close" onclick="closeModal()">✕</button><h2>'+f.name+'</h2><p class="meta-line">No se pudo cargar el contenido de este archivo.</p><div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>');
+    return;
+  }
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>'+f.name+'</h2>';
+  if(f.kind==='grabacion'){
+    html += '<audio controls autoplay style="width:100%;margin-top:10px;" src="'+dataUrl+'"></audio>';
+    html += '<div class="modal-actions"><a class="btn" href="'+dataUrl+'" download="'+f.name+'">Descargar</a><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+    openModal(html, true);
+  } else if(dataUrl.indexOf('application/pdf')!==-1){
+    html += '<div id="pdf-view-status" class="meta-line" style="margin-top:10px;">Cargando vista previa…</div>';
+    html += '<div style="text-align:center;"><canvas id="pdf-canvas" style="max-width:100%;border:1px solid var(--line);border-radius:8px;margin-top:8px;"></canvas></div>';
+    html += '<div class="modal-actions" style="justify-content:center;gap:14px;"><button class="btn small" onclick="pdfPrev()">‹ Anterior</button><span id="pdf-page-label" style="align-self:center;font-size:12.5px;"></span><button class="btn small" onclick="pdfNext()">Siguiente ›</button></div>';
+    html += '<div class="modal-actions"><a class="btn" href="'+dataUrl+'" download="'+f.name+'">Descargar</a><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+    openModal(html, true);
+    try{
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.getDocument({data:dataURLToBytes(dataUrl)}).promise.then(pdfDoc=>{
+        currentPdfDoc = pdfDoc; currentPdfPage = 1;
+        document.getElementById('pdf-view-status').style.display='none';
+        renderPdfPage(1);
+      }).catch(err=>{ document.getElementById('pdf-view-status').textContent = 'No se pudo previsualizar este PDF. Puedes descargarlo con el botón de abajo.'; });
+    }catch(err){ document.getElementById('pdf-view-status').textContent = 'No se pudo previsualizar este PDF. Puedes descargarlo con el botón de abajo.'; }
+  } else {
+    html += '<p class="meta-line" style="margin-top:8px;">La vista previa dentro de la app solo está disponible para PDF y audio. Descarga este archivo para abrirlo.</p>';
+    html += '<div class="modal-actions"><a class="btn" href="'+dataUrl+'" download="'+f.name+'">Descargar</a><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+    openModal(html);
+  }
+}
+function deleteFile(id){
+  const f = state.files.find(x=>x.id===id);
+  state.files = state.files.filter(x=>x.id!==id);
+  saveState();
+  if(f && f.hasData) storageDeleteSafe('filedata:'+id);
+  if(f && f.syncUrl) deleteFileFromCloud(id);
+  renderFiles();
+}
+
+function renderFiles(){
+  const sel = document.getElementById('file-course-filter');
+  if(sel.options.length<=1){ state.courses.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.name; sel.appendChild(o); }); }
+  const filterVal = sel.value;
+  const list = document.getElementById('files-list');
+  let files = [...state.files].sort((a,b)=>b.date.localeCompare(a.date));
+  if(filterVal) files = files.filter(f=>f.courseId===filterVal);
+  if(files.length===0){ list.innerHTML = '<div class="empty">No hay archivos guardados todavía.</div>'; return; }
+  let html=''; let lastDate=null;
+  files.forEach(f=>{
+    if(f.date!==lastDate){ html += '<div class="agenda-date-header">'+f.date+'</div>'; lastDate=f.date; }
+    html += fileRowHtml(f);
+  });
+  list.innerHTML = html;
+}
+
+function openFileUpload(courseId, presetKind){
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>Subir archivo</h2>';
+  html += '<div class="field"><label>Curso</label><select id="fu-course">'+state.courses.map(c=>'<option value="'+c.id+'" '+(c.id===courseId?'selected':'')+'>'+c.name+'</option>').join('')+'</select></div>';
+  html += '<div class="field"><label>Tipo</label><select id="fu-kind"><option value="apuntes" '+(presetKind==='apuntes'?'selected':'')+'>Apuntes (PDF)</option><option value="documento" '+(presetKind==='documento'?'selected':'')+'>Documento</option><option value="separata" '+(presetKind==='separata'?'selected':'')+'>Separata</option><option value="fuente" '+(presetKind==='fuente'?'selected':'')+'>Fuente / lectura</option><option value="silabo" '+(presetKind==='silabo'?'selected':'')+'>Sílabo / programación</option>'
+    + state.fileTypeOptions.map(o=>'<option value="'+o.replace(/"/g,'&quot;')+'" '+(presetKind===o?'selected':'')+'>'+o+'</option>').join('')
+    + '</select>'
+    + '<div style="margin-top:6px;display:flex;gap:6px;"><input type="text" id="fu-kind-new" placeholder="Agregar otro tipo de archivo" style="flex:1;padding:6px 8px;border:1.3px solid var(--line);border-radius:8px;font-size:12.5px;"><button type="button" class="btn small ghost" onclick="addFileTypeOption()">+ Agregar</button></div></div>';
+  html += '<div class="field"><label>Archivo</label><input type="file" id="fu-file" accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"></div>';
+  html += '<div class="field"><label>Nota (opcional)</label><input type="text" id="fu-note" placeholder="Ej. Separata clase 4"></div>';
+  html += '<p class="meta-line">El prototipo web puede guardar archivos pequeños (hasta ~2&nbsp;MB). La app Android nativa guardará archivos sin ese límite.</p>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveFileUpload()">Guardar</button></div>';
+  openModal(html);
+}
+function addFileTypeOption(){
+  const input = document.getElementById('fu-kind-new');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!state.fileTypeOptions.includes(val)) state.fileTypeOptions.push(val);
+  saveState();
+  const sel = document.getElementById('fu-kind');
+  const opt = document.createElement('option');
+  opt.value = val; opt.textContent = val;
+  sel.appendChild(opt);
+  sel.value = val;
+  input.value = '';
+}
+function saveFileUpload(){
+  const courseId = document.getElementById('fu-course').value;
+  const kind = document.getElementById('fu-kind').value;
+  const note = document.getElementById('fu-note').value;
+  const fileInput = document.getElementById('fu-file');
+  const file = fileInput.files[0];
+  if(kind==='silabo'){
+    const existing = state.files.find(f=>f.kind==='silabo' && f.courseId===courseId);
+    if(existing){
+      state.files = state.files.filter(f=>f.id!==existing.id);
+      if(existing.hasData) storageDeleteSafe('filedata:'+existing.id);
+    }
+  }
+  const entry = {id:uid(), courseId, kind, name: file?file.name:'Archivo sin nombre', date: todayStr(), note, hasData:false};
+  state.files.push(entry);
+  saveState();
+  closeModal(); renderFiles();
+  if(file && file.size < 2*1024*1024){
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      entry.hasData = await storageSetSafe('filedata:'+entry.id, reader.result);
+      if(syncActive()){
+        const url = await uploadFileToCloud(entry.id, reader.result);
+        if(url) entry.syncUrl = url;
+      }
+      saveState(); renderFiles();
+      if(!entry.hasData) alert('El archivo se registró, pero no se pudo guardar su contenido. Intenta con un archivo más pequeño.');
+    };
+    reader.onerror = ()=>{ renderFiles(); };
+    reader.readAsDataURL(file);
+  } else if(file){
+    alert('El archivo es muy grande para este prototipo (límite ~3 MB). Se registró la referencia, pero sin contenido para previsualizar.');
+  }
+}
+
+let mediaRecorder=null, recChunks=[], recCourseId=null;
+function openRecordPanel(courseId){
+  recCourseId = courseId;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>Grabar audio de la clase</h2>';
+  html += '<p class="meta-line">Se guardará como grabación del curso seleccionado. Necesitas dar permiso de micrófono al navegador.</p>';
+  html += '<div id="rec-status" style="margin:14px 0;">⏺ Listo para grabar</div>';
+  html += '<div class="modal-actions" style="justify-content:flex-start;">';
+  html += '<button class="btn primary" id="rec-start" onclick="startRecording()">Iniciar grabación</button>';
+  html += '<button class="btn danger" id="rec-stop" onclick="stopRecording()" style="display:none;">Detener</button>';
+  html += '</div><div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar</button></div>';
+  openModal(html);
+}
+async function startRecording(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    recChunks=[];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e=> recChunks.push(e.data);
+    mediaRecorder.onstop = ()=>{
+      const blob = new Blob(recChunks, {type:'audio/webm'});
+      const entry = {id:uid(), courseId:recCourseId, kind:'grabacion', name:'Grabación '+new Date().toLocaleTimeString(), date:todayStr(), note:'', hasData:false};
+      state.files.push(entry);
+      saveState(); closeModal(); renderFiles();
+      stream.getTracks().forEach(t=>t.stop());
+      if(blob.size >= 2*1024*1024){
+        alert('La grabación se registró, pero dura demasiado para guardarse en este prototipo (límite ~2 MB de audio, unos 2-3 minutos). Prueba grabaciones más cortas, o espera a la app Android que no tendrá este límite.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async ()=>{
+        entry.hasData = await storageSetSafe('filedata:'+entry.id, reader.result);
+        if(syncActive()){
+          const url = await uploadFileToCloud(entry.id, reader.result);
+          if(url) entry.syncUrl = url;
+        }
+        saveState(); renderFiles();
+        if(!entry.hasData) alert('La grabación se registró, pero no se pudo guardar el audio. Puede que sea muy larga para este prototipo.');
+      };
+      reader.readAsDataURL(blob);
+    };
+    mediaRecorder.start();
+    document.getElementById('rec-status').innerHTML = '<span class="rec-indicator"><span class="rec-dot"></span> Grabando…</span>';
+    document.getElementById('rec-start').style.display='none';
+    document.getElementById('rec-stop').style.display='inline-block';
+  }catch(err){
+    document.getElementById('rec-status').textContent = 'No se pudo acceder al micrófono: '+err.message;
+  }
+}
+function stopRecording(){ if(mediaRecorder) mediaRecorder.stop(); }
+
+/* ================= SETTINGS ================= */
+function renderSettings(){
+  document.getElementById('cfg-start').value = state.config.startHour;
+  document.getElementById('cfg-end').value = state.config.endHour;
+  document.getElementById('cfg-scale-max').value = state.config.scaleMax;
+  document.getElementById('cfg-scale-min').value = state.config.scaleMin;
+  document.getElementById('cfg-semester-start').value = state.config.semesterStart || '';
+  document.getElementById('cfg-days').innerHTML = DOW_FULL.map((d,i)=>
+    '<label style="font-size:12.5px;"><input type="checkbox" value="'+i+'" '+(state.config.days.includes(i)?'checked':'')+' style="width:auto;"> '+d+'</label>'
+  ).join('');
+  document.getElementById('cfg-week-start').innerHTML = DOW_FULL.map((d,i)=>
+    '<option value="'+i+'" '+(state.config.weekStartDay===i?'selected':'')+'>'+d+'</option>'
+  ).join('');
+  document.getElementById('clothing-options-list').innerHTML = state.clothingOptions.map((o,idx)=>
+    '<span class="badge" style="margin:0 6px 6px 0;display:inline-flex;align-items:center;gap:6px;">'+o+' <button class="btn small danger" style="padding:1px 6px;" onclick="removeClothingOption('+idx+')">✕</button></span>'
+  ).join('') || '<span class="meta-line">Sin opciones aún.</span>';
+  document.getElementById('material-options-list').innerHTML = state.materialOptions.map((o,idx)=>
+    '<span class="badge" style="margin:0 6px 6px 0;display:inline-flex;align-items:center;gap:6px;">'+o+' <button class="btn small danger" style="padding:1px 6px;" onclick="removeMaterialOption('+idx+')">✕</button></span>'
+  ).join('') || '<span class="meta-line">Sin opciones aún.</span>';
+  document.getElementById('cfg-sync-code').value = state.config.syncCode || '';
+  renderSyncStatus();
+  renderEventTypes();
+}
+function removeClothingOption(idx){ state.clothingOptions.splice(idx,1); saveState(); renderSettings(); }
+function removeMaterialOption(idx){ state.materialOptions.splice(idx,1); saveState(); renderSettings(); }
+function saveConfig(){
+  const days = Array.from(document.querySelectorAll('#cfg-days input:checked')).map(x=>Number(x.value)).sort();
+  state.config.startHour = Number(document.getElementById('cfg-start').value);
+  state.config.endHour = Number(document.getElementById('cfg-end').value);
+  state.config.scaleMax = Number(document.getElementById('cfg-scale-max').value);
+  state.config.scaleMin = Number(document.getElementById('cfg-scale-min').value);
+  state.config.semesterStart = document.getElementById('cfg-semester-start').value || null;
+  state.config.weekStartDay = Number(document.getElementById('cfg-week-start').value);
+  state.config.days = days.length?days:[1,2,3,4,5];
+  saveState(); renderAll();
+  alert('Ajustes guardados.');
+}
+async function cleanupOrphanFiles(){
+  try{
+    const keys = await storageListSafe('filedata:');
+    if(!keys.length){ alert('No se encontraron archivos sin usar.'); return; }
+    const validIds = new Set(state.files.map(f=>f.id));
+    let removed = 0;
+    for(const key of keys){
+      const id = key.slice('filedata:'.length);
+      if(!validIds.has(id)){
+        await storageDeleteSafe(key);
+        removed++;
+      }
+    }
+    alert(removed>0 ? ('Se liberaron '+removed+' archivo(s) que ya no se usaban.') : 'No se encontraron archivos sin usar.');
+  }catch(e){
+    alert('No se pudo completar la limpieza: '+e.message);
+  }
+}
+function exportBackup(){
+  const backup = JSON.parse(JSON.stringify(state, (key,val)=> key==='dataUrl' ? undefined : val));
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'emanuel-respaldo-'+todayStr()+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+function importBackup(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const imported = JSON.parse(reader.result);
+      if(!imported || !Array.isArray(imported.courses)){ alert('El archivo no parece un respaldo válido de Emanuel.'); return; }
+      if(!confirm('Esto reemplazará los datos actuales de la app por los del respaldo. ¿Continuar?')) return;
+      state = imported;
+      const d = defaultState();
+      if(!state.config) state.config = d.config;
+      if(!state.clothingOptions) state.clothingOptions = d.clothingOptions;
+      if(!state.materialOptions) state.materialOptions = d.materialOptions;
+      if(!state.roleOptions) state.roleOptions = d.roleOptions;
+      if(!Array.isArray(state.files)) state.files = [];
+      state.files.forEach(f=>{ if(f.hasData===undefined) f.hasData = false; });
+      saveState();
+      renderAll();
+      alert('Respaldo importado correctamente.');
+    }catch(e){
+      alert('No se pudo leer el archivo de respaldo: '+e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+function resetAll(){
+  if(!confirm('Esto borrará todos tus cursos, eventos, horarios y archivos guardados. ¿Continuar?')) return;
+  state = defaultState();
+  saveState(); renderAll();
+}
+
+/* ================= RENDER ALL ================= */
+function renderAll(){
+  document.getElementById('header-period').textContent = new Date().toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  if(currentView==='horario') renderSchedule();
+  if(currentView==='agenda') renderAgenda();
+  if(currentView==='calendario') renderCalendar();
+  if(currentView==='cursos') renderCourses();
+  if(currentView==='carrera') renderCarreras();
+  if(currentView==='profesores') renderProfessors();
+  if(currentView==='calificaciones') renderGrades();
+  if(currentView==='archivos') renderFiles();
+  if(currentView==='ajustes') renderSettings();
+}
+
+/* ================= INIT ================= */
+function showLocalModeNotice(){
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:14px;left:14px;right:14px;max-width:520px;margin:0 auto;padding:10px 14px;border-radius:8px;font-size:12.5px;z-index:998;background:var(--warm);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,0.2);';
+  el.innerHTML = 'Estás abriendo este archivo directamente en el navegador (fuera de Claude), así que tus datos se guardan solo en <b>este</b> navegador. Para sincronizarlos automáticamente entre tus dispositivos, configura un código de sincronización en Ajustes. Mientras tanto, usa "Exportar respaldo" si vas a cambiar de navegador o dispositivo. <button onclick="this.parentElement.remove()" style="background:#fff;color:var(--warm);border:none;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700;cursor:pointer;margin-left:6px;">Entendido</button>';
+  document.body.appendChild(el);
+}
+
+(async function init(){
+  await loadState();
+  switchView('horario');
+  if(!HAS_CLOUD_STORAGE) showLocalModeNotice();
+  if(state.config.syncCode) startSyncListener();
+  setTimeout(scanStageDeadlines, 1500);
+  setInterval(scanStageDeadlines, 30000);
+})();
+</script>
+</body>
+</html>
