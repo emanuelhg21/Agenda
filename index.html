@@ -118,6 +118,8 @@
     color:#fff;font-size:11.5px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.15);
     border:1px solid rgba(0,0,0,0.15);cursor:grab;
   }
+  .now-line{position:absolute;left:0;right:0;height:0;border-top:2px solid #D32F2F;z-index:5;pointer-events:none;}
+  .now-line span{position:absolute;right:2px;top:-9px;background:#D32F2F;color:#fff;font-size:9.5px;padding:0 4px;border-radius:4px;}
   .sched-block b{display:block;font-size:12px;}
   .sched-block .meta{opacity:0.9;font-size:10.5px;}
 
@@ -932,41 +934,92 @@ function showPrintPreview(title, contentHtml){
   html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cerrar</button><button class="btn primary" onclick="window.print()">🖨️ Imprimir</button></div>';
   openModal(html, true);
 }
+function fmtNow(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function updateNowLine(){
+  const cfg = state && state.config; if(!cfg) return;
+  const nowMin = new Date().getHours()*60+new Date().getMinutes() - cfg.startHour*60;
+  document.querySelectorAll('.now-line').forEach(el=>{
+    if(nowMin<0 || nowMin>(cfg.endHour-cfg.startHour)*60){ el.style.display='none'; return; }
+    el.style.display='block'; el.style.top=(nowMin*SCHED_PX_PER_MIN)+'px';
+    const sp=el.querySelector('span'); if(sp) sp.textContent=fmtNow();
+  });
+}
 function printSchedule(){
+  const f = state.config.printOpts || {};
+  const chk = (k,def)=> (f[k]===undefined?def:f[k]) ? 'checked' : '';
+  const cfg = state.config;
+  let html = '<button class="modal-close" onclick="closeModal()">✕</button><h2>¿Qué incluir en la impresión?</h2>';
+  html += '<p class="meta-line" style="margin-bottom:8px;">Elige lo que debe aparecer; luego verás una vista previa antes de imprimir.</p>';
+  html += '<div class="field"><label>Contenido</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-blocks" '+chk('blocks',true)+' style="width:auto;"> Bloques de cursos</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-extras" '+chk('extras',true)+' style="width:auto;"> Extras</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-events" '+chk('events',true)+' style="width:auto;"> Eventos</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-stages" '+chk('stages',true)+' style="width:auto;"> Etapas de cumplimiento</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-hidedone" '+chk('hideDone',false)+' style="width:auto;"> Ocultar lo ya cumplido</label></div>';
+  html += '<div class="field"><label>Detalles</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-room" '+chk('room',true)+' style="width:auto;"> Aula</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-type" '+chk('type',true)+' style="width:auto;"> Columna de tipo</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-empty" '+chk('empty',true)+' style="width:auto;"> Mostrar días sin actividades</label>'
+    + '<label style="display:block;font-size:13px;"><input type="checkbox" id="po-summary" '+chk('summary',true)+' style="width:auto;"> Resumen al final (total de actividades)</label></div>';
+  html += '<div class="field"><label>Días</label><div style="display:flex;gap:10px;flex-wrap:wrap;">'
+    + orderDaysByWeekStart(cfg.days).map(d=>'<label style="font-size:13px;"><input type="checkbox" class="po-day" value="'+d+'" '+((f.days&&!f.days.includes(d))?'':'checked')+' style="width:auto;"> '+DOW_FULL[d]+'</label>').join('')
+    + '</div></div>';
+  html += '<div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="printScheduleConfirm()">Ver vista previa</button></div>';
+  openModal(html);
+}
+function printScheduleConfirm(){
+  const g = id=>document.getElementById(id).checked;
+  const opts = {
+    blocks:g('po-blocks'), extras:g('po-extras'), events:g('po-events'), stages:g('po-stages'),
+    hideDone:g('po-hidedone'), room:g('po-room'), type:g('po-type'), empty:g('po-empty'), summary:g('po-summary'),
+    days:Array.from(document.querySelectorAll('.po-day:checked')).map(x=>Number(x.value))
+  };
+  state.config.printOpts = opts; saveState();
+  const r = buildSchedulePrint(opts);
+  showPrintPreview(r.title, r.html);
+}
+function buildSchedulePrint(o){
   const cfg = state.config;
   const monday = startOfWeek(weekCursor);
   const sunday = addDays(monday,6);
-  const days = orderDaysByWeekStart(cfg.days);
+  const days = orderDaysByWeekStart(cfg.days).filter(d=>o.days.includes(d));
   const title = 'Horario: '+monday.toLocaleDateString('es-ES',{day:'numeric',month:'short'})+' – '+sunday.toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'});
-  let html = '';
+  let html = '', total = 0, counts = {bloques:0, extras:0, eventos:0, etapas:0};
   days.forEach(d=>{
     const dt = dateForDayInWeek(d, monday);
     const dateStr = fmtDate(dt);
     let rows = [];
-    state.scheduleBlocks.filter(b=>b.day===d && blockOccursOnDate(b, monday)).forEach(b=>{
+    if(o.blocks) state.scheduleBlocks.filter(b=>b.day===d && blockOccursOnDate(b, monday)).forEach(b=>{
       const course = courseById(b.courseId);
-      rows.push({time:b.start, end:b.end, label:(course?course.name:'Curso')+(b.classroom?' · '+b.classroom:''), tipo:b.type==='practica'?'Práctica':'Teoría'});
+      rows.push({k:'bloques', time:b.start, end:b.end, label:(course?course.name:'Curso')+((o.room&&b.classroom)?' · '+b.classroom:''), tipo:b.type==='practica'?'Práctica':'Teoría'});
     });
-    state.extraBlocks.filter(ex=> ex.mode==='unica' ? ex.date===dateStr : (ex.day===d && extraOccursOnDate(ex, monday))).forEach(ex=>{
-      rows.push({time:ex.start, end:ex.end, label:(ex.title||ex.type), tipo:'Extra: '+ex.type});
+    if(o.extras) state.extraBlocks.filter(ex=> ex.mode==='unica' ? ex.date===dateStr : (ex.day===d && extraOccursOnDate(ex, monday))).forEach(ex=>{
+      rows.push({k:'extras', time:ex.start, end:ex.end, label:(ex.title||ex.type), tipo:'Extra: '+ex.type});
     });
-    state.events.filter(e=>e.date===dateStr && e.time).forEach(e=>{
+    if(o.events) state.events.filter(e=>e.date===dateStr && e.time && !(o.hideDone && isEventDone(e))).forEach(e=>{
       const t = typeById(e.eventTypeId); const course = courseById(e.courseId);
-      rows.push({time:e.time, end:'', label:e.title+(course?' ('+course.name+')':''), tipo:t?t.name:'Evento'});
+      rows.push({k:'eventos', time:e.time, end:'', label:e.title+(course?' ('+course.name+')':''), tipo:t?t.name:'Evento'});
     });
-    stepsOnDate(dateStr).forEach(x=>{
-      rows.push({time:x.step.time||'', end:'', label:'🤝 '+(x.step.name||'Etapa')+' — '+x.event.title, tipo:'Etapa'});
+    if(o.stages) stepsOnDate(dateStr).filter(x=>!(o.hideDone && x.step.done)).forEach(x=>{
+      rows.push({k:'etapas', time:x.step.time||'', end:'', label:'🤝 '+(x.step.name||'Etapa')+' — '+x.event.title, tipo:'Etapa'});
     });
     rows.sort((a,b)=> (a.time||'').localeCompare(b.time||''));
+    if(rows.length===0 && !o.empty) return;
     html += '<h3 style="font-size:14px;margin-top:14px;">'+DOW_FULL[d]+' '+dt.getDate()+'/'+(dt.getMonth()+1)+'</h3>';
     if(rows.length===0){ html += '<p style="font-size:12px;color:#555;">Sin actividades.</p>'; }
     else {
-      html += '<table><tr><th>Hora</th><th>Actividad</th><th>Tipo</th></tr>';
-      rows.forEach(r=> html += '<tr><td>'+r.time+(r.end?'–'+r.end:'')+'</td><td>'+r.label+'</td><td>'+r.tipo+'</td></tr>');
+      html += '<table><tr><th>Hora</th><th>Actividad</th>'+(o.type?'<th>Tipo</th>':'')+'</tr>';
+      rows.forEach(r=>{ counts[r.k]++; total++; html += '<tr><td>'+r.time+(r.end?'–'+r.end:'')+'</td><td>'+r.label+'</td>'+(o.type?'<td>'+r.tipo+'</td>':'')+'</tr>'; });
       html += '</table>';
     }
   });
-  showPrintPreview(title, html);
+  if(o.summary){
+    html += '<h3 style="font-size:14px;margin-top:18px;">Resumen</h3><p style="font-size:12.5px;">Total: <b>'+total+'</b> actividades'
+      + (o.blocks?' · '+counts.bloques+' clases':'')+(o.extras?' · '+counts.extras+' extras':'')
+      + (o.events?' · '+counts.eventos+' eventos':'')+(o.stages?' · '+counts.etapas+' etapas':'')+'.</p>';
+  }
+  if(!html) html = '<p>No hay nada que imprimir con las opciones elegidas.</p>';
+  return {title, html};
 }
 function toggleHorarioFullscreen(){
   const el = document.getElementById('view-horario');
@@ -1170,6 +1223,7 @@ function renderSchedule(){
       const top=(h-cfg.startHour)*60*pxPerMin;
       html += '<div class="sched-hourline" style="position:absolute;top:'+top+'px;left:0;right:0;"></div>';
     }
+    if(isToday){ const nowMin = new Date().getHours()*60+new Date().getMinutes() - cfg.startHour*60; if(nowMin>=0 && nowMin<=totalMin) html += '<div class="now-line" style="top:'+(nowMin*pxPerMin)+'px;"><span>'+fmtNow()+'</span></div>'; }
     const blocks = filters.courses ? state.scheduleBlocks.filter(b=>b.day===d && blockOccursOnDate(b, monday)) : [];
     const blockGeom = blocks.map(b=>{
       const startMin = timeToMin(b.start) - cfg.startHour*60;
@@ -2801,7 +2855,9 @@ function showLocalModeNotice(){
   setTimeout(initGoogleTokenClient, 800);
   setTimeout(scanStageDeadlines, 1500);
   setInterval(scanStageDeadlines, 30000);
+  setInterval(updateNowLine, 30000);
 })();
 </script>
 </body>
 </html>
+
